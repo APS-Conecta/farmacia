@@ -1,0 +1,16 @@
+# Farmacia webroot hygiene (apps/epidemiologia/.htaccess shape — the lesson
+# there was 4.9 MB of generated files served to anyone). The app serves only
+# js/, img/ and templates/; everything else 404s, never 403s, so the server
+# stops being an existence oracle for source it should not have.
+Options -Indexes
+# openapi.json is repo material, not webroot material — epi denies its own
+# spec too: the contract is read from the repository, and nothing about
+# serving it over HTTP is part of any consumer's integration.
+<FilesMatch "^(composer\.json|composer\.lock|package\.json|package-lock\.json|openapi\.json|phpunit.*\.xml|Makefile|Dockerfile.*|\.gitignore|\.gitattributes)$">
+	Require all denied
+</FilesMatch>
+<FilesMatch "\.map$">
+	Require all denied
+</FilesMatch>
+RewriteEngine On
+RewriteRule ^(src|tests|lib|appinfo|scripts|node_modules|vendor|\.git)(/|$) - [R=404,L]

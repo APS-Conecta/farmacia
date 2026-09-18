@@ -1,0 +1,6 @@
+Código;Producto;Fármaco (DCI);Mg;Presentación;Categoría;Trazador;GES;Restricciones;Abastece;Programa;Indicación;Dosificación;Precauciones;Observaciones;Riesgo colinérgico AM;FDA embarazo;Ajuste renal
+F-001;Paracetamol 500 mg comprimidos;paracetamol;500;Comprimido;Analgésicos / antipiréticos / antiinflamatorios;No;17;Solo receta retenida;URGENCIAS|CECOSF;;Dolor y fiebre;1 comprimido cada 6 a 8 horas;máximo 4 comprimidos al día;;No;B;
+F-002;Enalapril 10 mg comprimidos;enalapril;10;Comprimido;Cardiovasculares (HTA · DM · DLP);Sí;1;;CECOSF;Cardiovascular;Hipertensión arterial;1 comprimido al día;Controlar presión arterial y función renal;;No;D;Reducir dosis en insuficiencia renal
+F-003;Diazepam 5 mg comprimidos;diazepam;5;Comprimido;Salud mental (incluye tto OH);No;;;URGENCIAS;;Ansiedad;"1 comprimido cada 8 horas; según indicación";Retirada gradual al suspender;;Sí;D;
+F-004;Metformina 850 mg comprimidos;metformina;850;Comprimido;Cardiovasculares (HTA · DM · DLP);Sí;1;;CECOSF;Cardiovascular;Diabetes mellitus tipo 2;1 comprimido cada 12 horas con las comidas;Vigilar función renal;;No;B;Ajustar dosis según función renal
+F-005;Ibuprofeno 400 mg comprimidos;ibuprofeno;400;Comprimido;Analgésicos / antipiréticos / antiinflamatorios;No;17;;;;Dolor e inflamación;1 comprimido cada 8 horas;No usar en embarazo ni úlcera gástrica;;No;C;

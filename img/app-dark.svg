@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Surface: light surfaces such as the apps list on a light theme, where the
+     dark-mode chrome cannot be assumed. Same drawing as app.svg, black tint. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+	<g fill="#000">
+		<rect x="5" y="12" width="22" height="8" rx="4" transform="rotate(-45 16 16)"/>
+	</g>
+</svg>

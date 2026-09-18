@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Surface: the dark app menu and the side_menu panel, where Nextcloud paints
+     the glyph over dark chrome. Single tint by contract (AppIconTest). Pair:
+     app-dark.svg for light surfaces. No double hyphens live in XML comments:
+     a comment containing one is a parse error and the file renders as nothing
+     while every existence check stays green. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+	<!-- Capsule: the pharmacy mark, rotated to read as an app glyph. -->
+	<g fill="#fff">
+		<rect x="5" y="12" width="22" height="8" rx="4" transform="rotate(-45 16 16)"/>
+	</g>
+</svg>

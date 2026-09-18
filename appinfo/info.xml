@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>farmacia</id>
+    <name>Farmacia</name>
+    <summary>Vademécum de medicamentos del CESFAM: arsenal farmacológico con información de seguridad clínica</summary>
+    <description><![CDATA[El vademécum de medicamentos que el CESFAM receta y despacha: principios activos, presentaciones, cobertura (GES, abastece), y seguridad clínica (categoría FDA en embarazo, ajuste renal, riesgo colinérgico en adulto mayor). Consultable por todo el personal, editable por todo el equipo.
+
+No contiene información de pacientes. No gestiona stock ni vencimientos.]]></description>
+    <version>0.11.0</version>
+    <licence>AGPL-3.0-or-later</licence>
+    <author>Daniel Espinoza</author>
+    <namespace>Farmacia</namespace>
+    <category>tools</category>
+    <dependencies>
+        <php min-version="8.2" max-version="8.5"/>
+        <nextcloud min-version="34" max-version="34"/>
+    </dependencies>
+    <navigations>
+        <navigation>
+            <name>Farmacia</name>
+            <route>farmacia.page.index</route>
+        </navigation>
+    </navigations>
+    <!-- The occ door: the same ImportService the browser upload goes
+         through, so the two cannot drift. -->
+    <commands>
+        <command>OCA\Farmacia\Command\Import</command>
+    </commands>
+    <!-- Seeding lives in the repair step, not in the migration's
+         postSchemaChange: that hook is skipped on a schema-only first install,
+         which is exactly what occ app:enable runs. Registered for install AND
+         post-migration so upgrades re-run the guarded step. -->
+    <repair-steps>
+        <install>
+            <step>OCA\Farmacia\Migration\EnsureSeedData</step>
+        </install>
+        <post-migration>
+            <step>OCA\Farmacia\Migration\EnsureSeedData</step>
+        </post-migration>
+    </repair-steps>
+</info>

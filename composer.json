@@ -1,0 +1,33 @@
+{
+    "name": "aps-conecta/farmacia",
+    "description": "Vademécum de medicamentos del CESFAM",
+    "license": "AGPL-3.0-or-later",
+    "type": "project",
+    "require": {
+        "php": "^8.2"
+    },
+    "require-dev": {
+        "nextcloud/ocp": "^34.0",
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "OCA\\Farmacia\\": "lib/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "OCA\\Farmacia\\Tests\\Unit\\": "tests/unit/",
+            "OCA\\Farmacia\\Tests\\Integration\\": "tests/integration/",
+            "OCP\\": "vendor/nextcloud/ocp/OCP/",
+            "NCU\\": "vendor/nextcloud/ocp/NCU/"
+        }
+    },
+    "config": {
+        "platform": {
+            "php": "8.2"
+        },
+        "sort-packages": true,
+        "optimize-autoloader": true
+    }
+}
