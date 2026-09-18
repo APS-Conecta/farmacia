@@ -1,6 +1,6 @@
 {
     "name": "farmacia",
-    "version": "0.11.0",
+    "version": "0.11.1",
     "description": "Vademécum de medicamentos del CESFAM: arsenal farmacológico con información de seguridad clínica",
     "license": "AGPL-3.0-or-later",
     "private": true,
