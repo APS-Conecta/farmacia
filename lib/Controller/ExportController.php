@@ -10,6 +10,7 @@ use OCA\Farmacia\AppInfo\Application;
 use OCA\Farmacia\Service\ExportService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\IRequest;
 
@@ -23,7 +24,8 @@ use OCP\IRequest;
  *
  * GET, not POST, on purpose: the browser can navigate to the download,
  * which makes it a plain link — no fetch, no blob handling, and no CSRF
- * token, which a GET never needed.
+ * token. A bare navigation never sends one, so #[NoCSRFRequired] is what
+ * makes that allowed, not a property of GET (#1).
  */
 class ExportController extends Controller {
 	public function __construct(
@@ -35,6 +37,7 @@ class ExportController extends Controller {
 
 	/** The whole live arsenal as a CSV the app can read back. */
 	#[NoAdminRequired]
+	#[NoCSRFRequired]
 	public function plain(): DataDownloadResponse {
 		$file = $this->exports->export();
 

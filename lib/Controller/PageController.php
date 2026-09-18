@@ -11,6 +11,7 @@ use OCA\Farmacia\Service\MedicationService;
 use OCA\Farmacia\Service\VocabularyService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
+use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\IRequest;
@@ -26,7 +27,10 @@ class PageController extends Controller {
 		parent::__construct(Application::APP_ID, $request);
 	}
 
+	// A top-level navigation carries no request token; without NoCSRFRequired
+	// NC 34's CSRF middleware answers 412 and the browser shows the login shell (#1).
 	#[NoAdminRequired]
+	#[NoCSRFRequired]
 	public function index(): TemplateResponse {
 		// Two documents, not one filtered on the client. The arsenal and the
 		// retired list are different datasets, and the retired list needs its
