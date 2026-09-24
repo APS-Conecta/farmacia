@@ -24,15 +24,39 @@ class MedicationService {
 	private const PRODUCTO_MAX = 255;
 
 	private const OPTIONAL_TEXT = [
-		'farmaco' => 'setFarmaco',
-		'mg' => 'setMg',
-		'presentacion' => 'setPresentacion',
-		'programa' => 'setPrograma',
-		'indicacion' => 'setIndicacion',
-		'dosificacion' => 'setDosificacion',
-		'precauciones' => 'setPrecauciones',
-		'observaciones' => 'setObservaciones',
-		'ajusteRenal' => 'setAjusteRenal',
+		// [setter, the Spanish sentence label, the column's VARCHAR width —
+		// or null for the TEXT columns, which carry no app-side ceiling:
+		// a planilla cell caps at ImportService's stage table and a typed
+		// note has no length a clinic reaches; documented here because L2-05
+		// asks the TEXT bounds to be DECIDED, and the decision is "none,
+		// because the column is TEXT"].
+		'farmaco' => ['setFarmaco', 'El fármaco (DCI)', 255],
+		'mg' => ['setMg', 'Las mg', 64],
+		'presentacion' => ['setPresentacion', 'La presentación', 255],
+		'programa' => ['setPrograma', 'El programa', 128],
+		'indicacion' => ['setIndicacion', 'La indicación', null],
+		'dosificacion' => ['setDosificacion', 'La dosificación', null],
+		'precauciones' => ['setPrecauciones', 'Las precauciones', null],
+		'observaciones' => ['setObservaciones', 'Las observaciones', null],
+		'ajusteRenal' => ['setAjusteRenal', 'El ajuste renal', null],
+	];
+
+	/**
+	 * The cell caps the planilla stage echoes in its review sentence — one
+	 * table, read from the write path that enforces it (L2-05). Key →
+	 * [max, the column's Spanish name], with codigo/producto's own caps
+	 * folded in so the stage never states a number this service does not
+	 * refuse by.
+	 *
+	 * @return array<string, array{int, string}>
+	 */
+	public const CELL_CAPS = [
+		'codigo' => [self::CODIGO_MAX, 'Código'],
+		'producto' => [self::PRODUCTO_MAX, 'Producto'],
+		'farmaco' => [255, 'Fármaco (DCI)'],
+		'mg' => [64, 'Mg'],
+		'presentacion' => [255, 'Presentación'],
+		'programa' => [128, 'Programa'],
 	];
 
 	public function __construct(
@@ -113,7 +137,18 @@ class MedicationService {
 		}
 
 		return $this->medications->transactionally(function () use ($medication, $ges, $restrictions, $channels): array {
-			$written = $this->medications->update($medication);
+			try {
+				$written = $this->medications->update($medication);
+			} catch (DbException $e) {
+				// The mirror of insert()'s catch (L2-06): the one write the OCS
+				// contract exposes answered a duplicate código with the database's
+				// own error through a 500 — the sentence-style posture breaking on
+				// exactly the write a consumer can reach.
+				if ($e->getReason() !== DbException::REASON_UNIQUE_CONSTRAINT_VIOLATION) {
+					throw $e;
+				}
+				throw new InvalidMedicationException(sprintf('El código «%s» ya existe.', $medication->getCodigo()), 0, $e);
+			}
 			if ($ges !== null) { $this->ges->replaceFor((int)$written->getId(), $ges); }
 			if ($restrictions !== null) { $this->restrictions->replaceFor((int)$written->getId(), $restrictions); }
 			if ($channels !== null) { $this->abastece->replaceFor((int)$written->getId(), $channels); }
@@ -164,7 +199,15 @@ class MedicationService {
 		}
 
 		if ($whole || array_key_exists('categoryId', $input)) {
-			$categoryId = (int)($input['categoryId'] ?? 0);
+			// `is_int || ctype_digit`, never a bare cast: `(int)['x']` is 1, so a
+			// `categoryId[]=7` request silently classified a real medication under
+			// seeded category 1 after find(1) succeeded (L2-03) — a data-corruption
+			// path dressed as a validation pass.
+			$given = $input['categoryId'] ?? null;
+			$categoryId = is_int($given) || (is_string($given) && ctype_digit($given)) ? (int)$given : null;
+			if ($categoryId === null) {
+				throw new InvalidMedicationException('La categoría tiene que ser un número.');
+			}
 			try {
 				$this->categories->find($categoryId);
 			} catch (DoesNotExistException $e) {
@@ -173,9 +216,12 @@ class MedicationService {
 			$medication->setCategoryId($categoryId);
 		}
 
-		foreach (self::OPTIONAL_TEXT as $key => $setter) {
+		foreach (self::OPTIONAL_TEXT as $key => [$setter, $label, $cap]) {
 			if (!array_key_exists($key, $input)) { continue; }
 			$value = trim((string)$input[$key]);
+			if ($cap !== null && mb_strlen($value) > $cap) {
+				throw new InvalidMedicationException(sprintf('%s no puede pasar de %d caracteres.', $label, $cap));
+			}
 			$medication->$setter($value === '' ? null : $value);
 		}
 
@@ -224,6 +270,13 @@ class MedicationService {
 			if (!is_scalar($value)) { throw new InvalidMedicationException('Cada restricción es un texto.'); }
 			$restriction = trim((string)$value);
 			if ($restriction === '') { continue; }
+			if (str_contains($restriction, '|')) {
+				// cleanLabel's own sentence, restated for the field it names (L2-13):
+				// the export joins a medication's restrictions with «|», so a
+				// stored one carrying it cannot round-trip — refused where it is
+				// typed rather than discovered at the review of a LATER import.
+				throw new InvalidMedicationException('Cada restricción no puede contener «|»: es el separador con el que la planilla une varios valores en una celda.');
+			}
 			$restrictions[] = $restriction;
 		}
 		$restrictions = array_values(array_unique($restrictions));

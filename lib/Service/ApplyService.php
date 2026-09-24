@@ -43,6 +43,10 @@ use OCP\AppFramework\Db\DoesNotExistException;
  * outer rollBack() still wins — verified in the container against the same
  * Nextcloud 34 the suite pins (OC\DB\ConnectionAdapter over DBAL 3's
  * Connection:beginTransaction/commit/rollBack), the way the OCS header was.
+ * PINNED, not just observed: `ApplyRollbackTest` stages a real batch whose
+ * Nth row provably fails at apply time and asserts zero rows landed and
+ * the batch is still staged (L2-11) — the container observation above is
+ * now the test's failure message, which is where an invariant belongs.
  *
  * The revert is the inverse walk over the same rows (territorio's
  * RevertService, minus its RevisionLog): what the apply created is retired

@@ -16,6 +16,7 @@ use OCA\Farmacia\Exception\InvalidVocabularyException;
 use OCA\Farmacia\Service\VocabularyService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\Exception as DbException;
+use OCP\IDBConnection;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -40,6 +41,7 @@ final class VocabularyServiceTest extends TestCase {
 	private ChannelMapper&MockObject $channels;
 	private MedicationMapper&MockObject $medications;
 	private MedicationAbasteceMapper&MockObject $assignments;
+	private IDBConnection&MockObject $db;
 	private VocabularyService $service;
 
 	protected function setUp(): void {
@@ -47,8 +49,9 @@ final class VocabularyServiceTest extends TestCase {
 		$this->channels = $this->createMock(ChannelMapper::class);
 		$this->medications = $this->createMock(MedicationMapper::class);
 		$this->assignments = $this->createMock(MedicationAbasteceMapper::class);
+		$this->db = $this->createMock(IDBConnection::class);
 		$this->service = new VocabularyService(
-			$this->categories, $this->channels, $this->medications, $this->assignments,
+			$this->categories, $this->channels, $this->medications, $this->assignments, $this->db,
 		);
 	}
 

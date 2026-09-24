@@ -1,5 +1,13 @@
 <template>
 	<NcContent app-name="farmacia">
+		<!-- The mount-failure card (L2-22): data() that cannot read its
+		     initial state renders THIS, not an eternal «Cargando…». -->
+		<NcNoteCard v-if="stateFailed" type="error" class="farmacia__state-failed">
+			No se pudieron cargar los datos de la aplicación. Recargue la página;
+			si persiste, avise al administrador.
+		</NcNoteCard>
+
+		<template v-if="!stateFailed">
 		<NcAppNavigation :aria-label="'Farmacia'">
 			<NcAppNavigationList>
 				<NcAppNavigationItem v-for="lens in lenses"
@@ -52,8 +60,11 @@
 		</NcAppContent>
 
 		<!-- The sectioned sidebar card (the checkpoint's mockup #2): one record,
-		     five sections, Guardar a real submit. -->
+		     five sections, Guardar a real submit. Keyed by draft.id (L2-16): the
+		     sidebar REMOUNTS per record, so a confirm armed on one record can
+		     never cross into the next; null for a new draft remounts it too. -->
 		<NcAppSidebar v-if="draft !== null"
+			:key="draft.id"
 			:name="draft.id === null ? 'Nuevo medicamento' : draft.producto || 'Sin nombre'"
 			@close="closeDraft">
 			<!-- The recovery surface: a retired record opens read-only (the form
@@ -111,6 +122,7 @@
 			@create="createWord"
 			@rename="renameWord"
 			@remove="removeWord" />
+		</template>
 	</NcContent>
 </template>
 
@@ -132,8 +144,23 @@ import ExportDialog from './components/ExportDialog.vue'
 import MedicationDetail from './components/MedicationDetail.vue'
 import MedicationList from './components/MedicationList.vue'
 import VocabularyDialog from './components/VocabularyDialog.vue'
+import { messageFrom, safeError } from './api.js'
 import { emptyFilter } from './filters.js'
-import { blankDraft, draftFrom, payload } from './payload.js'
+import { blankDraft, draftFrom, mergeMedication, payload } from './payload.js'
+
+/**
+ * An initial-state read that cannot throw mid-data() (L2-22): a missing
+ * or corrupt key left the mount stub unresolved and the page read
+ * «Cargando…» forever — indistinguishable from slow. Failure is an
+ * answer the template can render, not an exception in a lifecycle hook.
+ */
+function readState(key) {
+	try {
+		return loadState('farmacia', key)
+	} catch {
+		return null
+	}
+}
 
 const LENSES = [
 	{ id: 'arsenal', name: 'Arsenal Farmacológico' },
@@ -163,10 +190,10 @@ export default {
 	data() {
 		return {
 			lenses: LENSES,
-			medications: loadState('farmacia', 'medications'),
-			retired: loadState('farmacia', 'retired'),
-			categories: loadState('farmacia', 'categories'),
-			abastece: loadState('farmacia', 'abastece'),
+			medications: readState('medications'),
+			retired: readState('retired'),
+			categories: readState('categories'),
+			abastece: readState('abastece'),
 			filter: emptyFilter(),
 			showRetired: false,
 			// The draft IS the selection: one sidebar, one record, no
@@ -197,6 +224,12 @@ export default {
 		selectedIsRetired() {
 			return this.draft?.retired ?? false
 		},
+
+		/** Any initial-state key that failed its read (L2-22). */
+		stateFailed() {
+			return this.medications === null || this.retired === null
+				|| this.categories === null || this.abastece === null
+		},
 	},
 
 	mounted() {
@@ -216,7 +249,38 @@ export default {
 	},
 
 	methods: {
+		/**
+		 * The eleven catch blocks' one shape (L2-15): run the request, read
+		 * the server's sentence or the fallback into a named error, never log
+		 * the object. writeWord proved the shape; this is the shape, shared.
+		 * A function-valued fallback (reopenBatch's 404) REPLACES the
+		 * messageFrom read — it is a decision about which sentence wins, not
+		 * about the shape.
+		 *
+		 * @param {Function} request the axios call, uninvoked
+		 * @param {string} label the stable half of the log line, e.g. 'could not save the medication'
+		 * @param {string} onError the data field the sentence lands in
+		 * @param {string|Function} fallback the no-response sentence, or (exception) => sentence
+		 */
+		async runRequest({ request, label, onError, fallback }) {
+			try {
+				const { data } = await request()
+				return data
+			} catch (exception) {
+				this[onError] = typeof fallback === 'function'
+					? fallback(exception)
+					: messageFrom(exception, fallback)
+				safeError(label, exception)
+				return null
+			}
+		},
+
 		openLens(id) {
+			// A lens is a browsing choice about the LIVE arsenal (L2-19): the
+			// retired screen deliberately ignores it (filters.js's own pinned
+			// rule), so a highlighted lens there advertised a narrowing that
+			// never happened. Choosing one leaves the retired view.
+			this.showRetired = false
 			this.filter = { lens: id, query: '' }
 		},
 
@@ -242,24 +306,11 @@ export default {
 			this.error = ''
 		},
 
-		/**
-		 * One saved payload, into the set it belongs in and out of the other:
-		 * a record changed `retired` by definition crossed sets (Guardar never
-		 * sends it, but Retirar and Restaurar both answer with the row they
-		 * moved). Unshifted when new — the list reads newest-first, and a
-		 * record that saved into invisibility would read as data loss.
-		 */
-		mergeMedication(data) {
-			const into = data.retired ? 'retired' : 'medications'
-			const outOf = data.retired ? 'medications' : 'retired'
-
-			const index = this[into].findIndex((m) => m.id === data.id)
-			if (index === -1) {
-				this[into].unshift(data)
-			} else {
-				this[into].splice(index, 1, data)
-			}
-			this[outOf] = this[outOf].filter((m) => m.id !== data.id)
+		/** One saved payload applied to the two sets (payload.js's pure rule). */
+		applyMerge(data) {
+			const sets = mergeMedication({ medications: this.medications, retired: this.retired }, data)
+			this.medications = sets.medications
+			this.retired = sets.retired
 		},
 
 		async save() {
@@ -268,23 +319,25 @@ export default {
 
 			try {
 				const isNew = this.draft.id === null
-				const { data } = isNew
-					? await axios.post(generateUrl('/apps/farmacia/medications'), payload(this.draft))
-					: await axios.put(
-						generateUrl(`/apps/farmacia/medications/${this.draft.id}`),
-						payload(this.draft),
-					)
+				const data = await this.runRequest({
+					request: () => isNew
+						? axios.post(generateUrl('/apps/farmacia/medications'), payload(this.draft))
+						: axios.put(
+							generateUrl(`/apps/farmacia/medications/${this.draft.id}`),
+							payload(this.draft),
+						),
+					label: 'could not save the medication',
+					onError: 'error',
+					fallback: 'No se pudo guardar. Revise la conexión e inténtelo de nuevo.',
+				})
 
-				this.mergeMedication(data)
-				// The draft rebuilds from the server's answer, so what the form
-				// shows after Guardar is what was stored — deduped GES list,
-				// trimmed texts, stamped updated_at — not what was typed.
-				this.draft = draftFrom(data)
-			} catch (exception) {
-				// 422 carries a message naming what to fix; anything else does not.
-				this.error = exception.response?.data?.message
-					?? 'No se pudo guardar. Revise la conexión e inténtelo de nuevo.'
-				console.error('farmacia: could not save the medication', exception)
+				if (data !== null) {
+					this.applyMerge(data)
+					// The draft rebuilds from the server's answer, so what the form
+					// shows after Guardar is what was stored — deduped GES list,
+					// trimmed texts, stamped updated_at — not what was typed.
+					this.draft = draftFrom(data)
+				}
 			} finally {
 				this.saving = false
 			}
@@ -293,36 +346,38 @@ export default {
 		async retire() {
 			this.error = ''
 
-			try {
-				const { data } = await axios.delete(
+			const data = await this.runRequest({
+				request: () => axios.delete(
 					generateUrl(`/apps/farmacia/medications/${this.draft.id}`),
-				)
+				),
+				label: 'could not retire the medication',
+				onError: 'error',
+				fallback: 'No se pudo retirar. Revise la conexión e inténtelo de nuevo.',
+			})
 
-				this.mergeMedication(data)
+			if (data !== null) {
 				// The sidebar stays open on the retired record: the person sees
 				// what retiring did, and Restaurar is right there.
+				this.applyMerge(data)
 				this.draft = draftFrom(data)
-			} catch (exception) {
-				this.error = exception.response?.data?.message
-					?? 'No se pudo retirar. Revise la conexión e inténtelo de nuevo.'
-				console.error('farmacia: could not retire the medication', exception)
 			}
 		},
 
 		async restore() {
 			this.error = ''
 
-			try {
-				const { data } = await axios.post(
+			const data = await this.runRequest({
+				request: () => axios.post(
 					generateUrl(`/apps/farmacia/medications/${this.draft.id}/restore`),
-				)
+				),
+				label: 'could not restore the medication',
+				onError: 'error',
+				fallback: 'No se pudo restaurar. Revise la conexión e inténtelo de nuevo.',
+			})
 
-				this.mergeMedication(data)
+			if (data !== null) {
+				this.applyMerge(data)
 				this.draft = draftFrom(data)
-			} catch (exception) {
-				this.error = exception.response?.data?.message
-					?? 'No se pudo restaurar. Revise la conexión e inténtelo de nuevo.'
-				console.error('farmacia: could not restore the medication', exception)
 			}
 		},
 
@@ -341,12 +396,15 @@ export default {
 
 		/** The recent runs — a batch staged before the page closed reopens. */
 		async loadBatches() {
-			try {
-				const { data } = await axios.get(generateUrl('/apps/farmacia/import/batches'))
+			const data = await this.runRequest({
+				request: () => axios.get(generateUrl('/apps/farmacia/import/batches')),
+				label: 'could not read the import batches',
+				onError: 'importError',
+				fallback: 'No se pudo leer la lista de lotes. Revise la conexión e inténtelo de nuevo.',
+			})
+
+			if (data !== null) {
 				this.importBatches = data
-			} catch (exception) {
-				this.importError = 'No se pudo leer la lista de lotes. Revise la conexión e inténtelo de nuevo.'
-				console.error('farmacia: could not read the import batches', exception)
 			}
 		},
 
@@ -363,14 +421,17 @@ export default {
 				const upload = new FormData()
 				upload.append('file', file)
 
-				const { data } = await axios.post(generateUrl('/apps/farmacia/import'), upload)
+				const data = await this.runRequest({
+					request: () => axios.post(generateUrl('/apps/farmacia/import'), upload),
+					label: 'could not stage the planilla',
+					onError: 'importError',
+					fallback: 'No se pudo leer el archivo. Revise la conexión e inténtelo de nuevo.',
+				})
 
-				this.importDocument = data
-				this.importBatches.unshift(data.batch)
-			} catch (exception) {
-				this.importError = exception.response?.data?.message
-					?? 'No se pudo leer el archivo. Revise la conexión e inténtelo de nuevo.'
-				console.error('farmacia: could not stage the planilla', exception)
+				if (data !== null) {
+					this.importDocument = data
+					this.importBatches.unshift(data.batch)
+				}
 			} finally {
 				this.importBusy = false
 			}
@@ -382,14 +443,21 @@ export default {
 			this.importError = ''
 
 			try {
-				const { data } = await axios.get(generateUrl(`/apps/farmacia/import/${id}`))
-				this.importDocument = data
-			} catch (exception) {
-				this.importError = exception.response?.status === 404
-					? 'El lote ya no existe.'
-					: (exception.response?.data?.message
-						?? 'No se pudo abrir el lote. Revise la conexión e inténtelo de nuevo.')
-				console.error('farmacia: could not reopen the import batch', exception)
+				const data = await this.runRequest({
+					request: () => axios.get(generateUrl(`/apps/farmacia/import/${id}`)),
+					label: 'could not reopen the import batch',
+					onError: 'importError',
+					// The 404 special case stays INSIDE the fallback argument (L2-15):
+					// a decision about which sentence wins, not about the shape — the
+					// server's bare 'no existe' never beats the sentence that names it.
+					fallback: (exception) => exception?.response?.status === 404
+						? 'El lote ya no existe.'
+						: messageFrom(exception, 'No se pudo abrir el lote. Revise la conexión e inténtelo de nuevo.'),
+				})
+
+				if (data !== null) {
+					this.importDocument = data
+				}
 			} finally {
 				this.importBusy = false
 			}
@@ -405,15 +473,20 @@ export default {
 			this.importError = ''
 
 			try {
-				const { data } = await axios.post(
-					generateUrl(`/apps/farmacia/import/rows/${rowId}/decision`),
-					decision,
-				)
+				const data = await this.runRequest({
+					request: () => axios.post(
+						generateUrl(`/apps/farmacia/import/rows/${rowId}/decision`),
+						decision,
+					),
+					label: 'could not record the review decision',
+					onError: 'importError',
+					fallback: 'No se pudo guardar la decisión. Revise la conexión e inténtelo de nuevo.',
+				})
 
 				// The dialog may have closed while the request flew (Cerrar is
 				// never disabled): the decision landed, there is simply no review
 				// open to show it in.
-				if (this.importDocument === null) {
+				if (data === null || this.importDocument === null) {
 					return
 				}
 
@@ -422,10 +495,6 @@ export default {
 				if (index !== -1) {
 					rows.splice(index, 1, data)
 				}
-			} catch (exception) {
-				this.importError = exception.response?.data?.message
-					?? 'No se pudo guardar la decisión. Revise la conexión e inténtelo de nuevo.'
-				console.error('farmacia: could not record the review decision', exception)
 			} finally {
 				this.importBusy = false
 			}
@@ -442,12 +511,16 @@ export default {
 			this.importError = ''
 
 			try {
-				await axios.post(generateUrl(`/apps/farmacia/import/${id}/apply`))
-				window.location.reload()
-			} catch (exception) {
-				this.importError = exception.response?.data?.message
-				?? 'No se pudo aplicar. Revise la conexión e inténtelo de nuevo.'
-				console.error('farmacia: could not apply the import batch', exception)
+				const data = await this.runRequest({
+					request: () => axios.post(generateUrl(`/apps/farmacia/import/${id}/apply`)),
+					label: 'could not apply the import batch',
+					onError: 'importError',
+					fallback: 'No se pudo aplicar. Revise la conexión e inténtelo de nuevo.',
+				})
+
+				if (data !== null) {
+					window.location.reload()
+				}
 			} finally {
 				this.importBusy = false
 			}
@@ -462,13 +535,17 @@ export default {
 			this.importError = ''
 
 			try {
-				await axios.post(generateUrl(`/apps/farmacia/import/${id}/discard`))
-				this.importDocument = null
-				await this.loadBatches()
-			} catch (exception) {
-				this.importError = exception.response?.data?.message
-				?? 'No se pudo descartar. Revise la conexión e inténtelo de nuevo.'
-				console.error('farmacia: could not discard the import batch', exception)
+				const data = await this.runRequest({
+					request: () => axios.post(generateUrl(`/apps/farmacia/import/${id}/discard`)),
+					label: 'could not discard the import batch',
+					onError: 'importError',
+					fallback: 'No se pudo descartar. Revise la conexión e inténtelo de nuevo.',
+				})
+
+				if (data !== null) {
+					this.importDocument = null
+					await this.loadBatches()
+				}
 			} finally {
 				this.importBusy = false
 			}
@@ -480,12 +557,16 @@ export default {
 			this.importError = ''
 
 			try {
-				await axios.post(generateUrl(`/apps/farmacia/import/${id}/revert`))
-				window.location.reload()
-			} catch (exception) {
-				this.importError = exception.response?.data?.message
-				?? 'No se pudo deshacer. Revise la conexión e inténtelo de nuevo.'
-				console.error('farmacia: could not revert the import batch', exception)
+				const data = await this.runRequest({
+					request: () => axios.post(generateUrl(`/apps/farmacia/import/${id}/revert`)),
+					label: 'could not revert the import batch',
+					onError: 'importError',
+					fallback: 'No se pudo deshacer. Revise la conexión e inténtelo de nuevo.',
+				})
+
+				if (data !== null) {
+					window.location.reload()
+				}
 			} finally {
 				this.importBusy = false
 			}
@@ -548,17 +629,19 @@ export default {
 		async writeWord(request) {
 			this.vocabularyError = ''
 
-			try {
-				const { data } = await request()
+			const data = await this.runRequest({
+				request,
+				label: 'could not write the vocabulary',
+				onError: 'vocabularyError',
+				fallback: 'No se pudo guardar. Revise la conexión e inténtelo de nuevo.',
+			})
+
+			if (data !== null) {
 				if (this.vocabulary === 'categories') {
 					this.categories = data
 				} else {
 					this.abastece = data
 				}
-			} catch (exception) {
-				this.vocabularyError = exception.response?.data?.message
-					?? 'No se pudo guardar. Revise la conexión e inténtelo de nuevo.'
-				console.error('farmacia: could not write the vocabulary', exception)
 			}
 		},
 

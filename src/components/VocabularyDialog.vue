@@ -153,6 +153,21 @@ export default {
 		},
 	},
 
+	watch: {
+		// Success is observable: a rename that landed answers with the whole
+		// fresh list down the `entries` prop (VocabularyService's own shape),
+		// and THAT is the moment the field closes. A refusal changes nothing
+		// here — the error prop shows at the top of the dialog, and the field
+		// keeps what the person typed, exactly as commitAdd's own comment
+		// promises for the adder: "a refusal must not cost the person their
+		// text" (L2-20).
+		entries() {
+			if (this.editing !== null) {
+				this.editing = null
+			}
+		},
+	},
+
 	methods: {
 		startRename(entry) {
 			this.confirming = null
@@ -162,13 +177,15 @@ export default {
 
 		commitRename(entry) {
 			const label = this.draftLabel.trim()
-			this.editing = null
 			// A rename to the same name is a close, not a round trip: the
 			// answer would be the list the client already holds.
 			if (label === '' || label === entry.label) {
+				this.editing = null
 				return
 			}
 			this.$emit('rename', { slug: entry.slug, label })
+			// NOT closed here: a refusal must not cost the person their text
+			// (L2-20) — the field closes when the write lands, watched below.
 		},
 
 		startRemove(entry) {

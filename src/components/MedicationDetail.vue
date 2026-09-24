@@ -80,8 +80,12 @@
 
 			<NcTextField v-model="draft.programa" class="medication-detail__field" label="Programa" />
 
+			<!-- No `name` attr: NcCheckboxRadioSwitch throws on mount when a
+		     NAMED checkbox's model is not an array (group contract) — a
+		     standalone flag is not a data set, and the names only ever bought
+		     a console error on every sidebar open (surfaced by the L2-21
+		     mount tests). -->
 			<NcCheckboxRadioSwitch :model-value="draft.trazador"
-				name="trazador"
 				@update:model-value="draft.trazador = $event">
 				Trazador (uso monitorio / epidemiológico)
 			</NcCheckboxRadioSwitch>
@@ -148,7 +152,6 @@
 			<legend>Seguridad</legend>
 
 			<NcCheckboxRadioSwitch :model-value="draft.riesgoColinergicoAm"
-				name="riesgo-colinergico"
 				@update:model-value="draft.riesgoColinergicoAm = $event">
 				Riesgo colinérgico en adulto mayor
 			</NcCheckboxRadioSwitch>
@@ -189,8 +192,7 @@ import NcSelect from '@nextcloud/vue/components/NcSelect'
 import NcTextArea from '@nextcloud/vue/components/NcTextArea'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
 
-/** Mirrors MedicationService::FDA_CATEGORIES — the domain's five, and nothing else. */
-const FDA_OPTIONS = ['A', 'B', 'C', 'D', 'X']
+import { FDA_OPTIONS } from '../payload.js'
 
 export default {
 	name: 'MedicationDetail',

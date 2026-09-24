@@ -19,6 +19,12 @@ export default [
 				console: 'readonly',
 				window: 'readonly',
 				FormData: 'readonly',
+				// document: the L2-21 mount tests read teleported dialog bodies
+				// through it (NcDialog renders outside the wrapper's tree);
+				// URL: payload.test.js's twins fixture path. Both standard, both
+				// jsdom/node surfaces the suite runs on.
+				document: 'readonly',
+				URL: 'readonly',
 			},
 		},
 		rules: {

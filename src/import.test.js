@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BATCH_STATE_LABELS, DISPOSITION_LABELS, counters, decisionFor, pendingRows } from '../src/import.js'
+import { BATCH_STATE_LABELS, DISPOSITION_LABELS, counters, decisionFor, decisionReady, pendingRows } from '../src/import.js'
 
 const BATCH = {
 	created: 5,
@@ -59,6 +59,24 @@ describe('decisionFor', () => {
 	it('sends nothing when the row owes nothing', () => {
 		expect(decisionFor(row({}), { categoryId: 2, abasteceIds: [1] })).toEqual({})
 		expect(decisionFor({ payload: null }, {})).toEqual({})
+	})
+})
+
+describe('decisionReady', () => {
+	it('is false with no row under decision', () => {
+		expect(decisionReady(null, null, false)).toBe(false)
+	})
+
+	it('is false when a category is owed and none is picked', () => {
+		expect(decisionReady({}, { categoryId: null, abasteceIds: [] }, true)).toBe(false)
+	})
+
+	it('is true when a category is owed and one is picked', () => {
+		expect(decisionReady({}, { categoryId: 2, abasteceIds: [] }, true)).toBe(true)
+	})
+
+	it('is true when no category is owed — none picked is the answer for channels', () => {
+		expect(decisionReady({}, { categoryId: null, abasteceIds: [] }, false)).toBe(true)
 	})
 })
 

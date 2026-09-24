@@ -15,6 +15,8 @@ use OCA\Farmacia\Db\MedicationAbasteceMapper;
 use OCA\Farmacia\Db\MedicationMapper;
 use OCA\Farmacia\Exception\InvalidVocabularyException;
 use OCP\DB\Exception as DbException;
+use OCP\IDBConnection;
+use Throwable;
 
 /**
  * The two vocabularies the app draws its filters and pickers from: the
@@ -44,6 +46,7 @@ class VocabularyService {
 		private ChannelMapper $channels,
 		private MedicationMapper $medications,
 		private MedicationAbasteceMapper $assignments,
+		private IDBConnection $db,
 	) {
 	}
 
@@ -115,33 +118,67 @@ class VocabularyService {
 	 * @throws InvalidVocabularyException while any medication, live or retired, is filed under it
 	 */
 	public function removeCategory(string $slug): array {
-		$word = $this->categories->findBySlug($slug);
-		$count = $this->medications->countByCategory((int)$word->getId());
-		$this->refuseIfInUse(
-			$count,
-			$word->getLabel(),
-			$count === 1 ? 'medicamento clasificado ahí' : 'medicamentos clasificados ahí',
-			'Reclasifíquelos',
-		);
-		$this->categories->delete($word);
+		// The count and the delete inside ONE transaction, the count re-run
+		// inside it (L2-07): the schema is deliberately FK-free — "the
+		// referential guarantees live in the service layer" — so the window
+		// between a count that said zero and a delete that raced a concurrent
+		// classification was the orphan the guard exists to prevent. The
+		// transaction narrows it to nothing: the re-count sees every write that
+		// committed before the lock and blocks the ones that have not.
+		return $this->transactionally(function () use ($slug): array {
+			$word = $this->categories->findBySlug($slug);
+			$count = $this->medications->countByCategory((int)$word->getId());
+			$this->refuseIfInUse(
+				$count,
+				$word->getLabel(),
+				$count === 1 ? 'medicamento clasificado ahí' : 'medicamentos clasificados ahí',
+				'Reclasifíquelos',
+			);
+			$this->categories->delete($word);
 
-		return $this->categories();
+			return $this->categories();
+		});
 	}
 
 	/** The channel mirror of `removeCategory()` — the count runs over the channel
 	 * assignments, every one of which is a reference the schema will not catch. */
 	public function removeChannel(string $slug): array {
-		$word = $this->channels->findBySlug($slug);
-		$count = $this->assignments->countByChannel((int)$word->getId());
-		$this->refuseIfInUse(
-			$count,
-			$word->getLabel(),
-			$count === 1 ? 'medicamento que proviene de este canal' : 'medicamentos que provienen de este canal',
-			'Quítelo de cada medicamento',
-		);
-		$this->channels->delete($word);
+		// The same wrap, mirrored (L2-07).
+		return $this->transactionally(function () use ($slug): array {
+			$word = $this->channels->findBySlug($slug);
+			$count = $this->assignments->countByChannel((int)$word->getId());
+			$this->refuseIfInUse(
+				$count,
+				$word->getLabel(),
+				$count === 1 ? 'medicamento que proviene de este canal' : 'medicamentos que provienen de este canal',
+				'Quítelo de cada medicamento',
+			);
+			$this->channels->delete($word);
 
-		return $this->abastece();
+			return $this->abastece();
+		});
+	}
+
+	/**
+	 * The org's third copy of these five lines (MedicationMapper's public
+	 * one, territorio's DuplicateService) — the M1-promotion candidate, noted
+	 * here so the canon wave finds it.
+	 *
+	 * @param callable(): T $work
+	 * @return T
+	 */
+	private function transactionally(callable $work): mixed {
+		$this->db->beginTransaction();
+		try {
+			$written = $work();
+			$this->db->commit();
+
+			return $written;
+		} catch (Throwable $e) {
+			$this->db->rollBack();
+
+			throw $e;
+		}
 	}
 
 	/**

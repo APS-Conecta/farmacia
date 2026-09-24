@@ -6,12 +6,10 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Controller;
 
+use APS\Common\Refuses;
 use OCA\Farmacia\AppInfo\Application;
-use OCA\Farmacia\Exception\InvalidVocabularyException;
 use OCA\Farmacia\Service\VocabularyService;
 use OCP\AppFramework\Controller;
-use OCP\AppFramework\Db\DoesNotExistException;
-use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
@@ -33,6 +31,7 @@ use OCP\IRequest;
  * disagree.
  */
 class CategoryController extends Controller {
+	use Refuses;
 	public function __construct(
 		IRequest $request,
 		private VocabularyService $vocabulary,
@@ -43,7 +42,7 @@ class CategoryController extends Controller {
 	#[NoAdminRequired]
 	public function create(): JSONResponse {
 		return $this->attempt(fn (): array
-			=> $this->vocabulary->addCategory((string)($this->request->getParam('label') ?? '')));
+			=> $this->vocabulary->addCategory(self::label($this->request->getParam('label'))));
 	}
 
 	/**
@@ -53,7 +52,7 @@ class CategoryController extends Controller {
 	#[NoAdminRequired]
 	public function update(string $slug): JSONResponse {
 		return $this->attempt(fn (): array
-			=> $this->vocabulary->renameCategory($slug, (string)($this->request->getParam('label') ?? '')));
+			=> $this->vocabulary->renameCategory($slug, self::label($this->request->getParam('label'))));
 	}
 
 	/**
@@ -67,18 +66,13 @@ class CategoryController extends Controller {
 	}
 
 	/**
-	 * One place to turn the service's refusals into status codes.
-	 *
-	 * @param callable(): array<int|string, mixed> $action
+	 * The label a request carried, or the empty string — never the literal
+	 * "Array" a `label[]=x` cast produces (L2-03). The empty string is the
+	 * one cleanLabel already refuses with its own sentence («El nombre no
+	 * puede quedar vacío.»), so garbage costs the caller the SAME answer a
+	 * blank box does — territorio's L1-12 doctrine, restated.
 	 */
-	private function attempt(callable $action): JSONResponse {
-		try {
-			return new JSONResponse($action());
-		} catch (InvalidVocabularyException $e) {
-			// The submission was understood and refused.
-			return new JSONResponse(['message' => $e->getMessage()], Http::STATUS_UNPROCESSABLE_ENTITY);
-		} catch (DoesNotExistException) {
-			return new JSONResponse(['message' => 'no existe'], Http::STATUS_NOT_FOUND);
-		}
+	private static function label(mixed $value): string {
+		return is_string($value) ? $value : '';
 	}
 }

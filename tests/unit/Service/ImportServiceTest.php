@@ -327,8 +327,9 @@ final class ImportServiceTest extends TestCase {
 
 	public function testDecideResolvesTheCategoryAndMovesTheRowToStaged(): void {
 		$this->wire();
-		$this->medications->method('findAll')->willReturn([]);
-		$this->medications->method('findRetired')->willReturn([]);
+		// decide() reads ONE record now (L2-08): the código the row carries
+		// resolves or it does not — F-009 is unstored, so it does not.
+		$this->medications->method('findByCodigo')->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('no'));
 		$row = $this->undecidedRow(['categoria' => null]);
 		$this->rows->method('find')->willReturn($row);
 		$this->batches->method('find')->willReturn($this->stagedBatch());
@@ -344,8 +345,7 @@ final class ImportServiceTest extends TestCase {
 
 	public function testDecideCanLeaveAChannelUnassigned(): void {
 		$this->wire();
-		$this->medications->method('findAll')->willReturn([]);
-		$this->medications->method('findRetired')->willReturn([]);
+		$this->medications->method('findByCodigo')->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('no'));
 		$row = $this->undecidedRow(['abastece' => ['SECO']]);
 		$this->rows->method('find')->willReturn($row);
 		$this->batches->method('find')->willReturn($this->stagedBatch());

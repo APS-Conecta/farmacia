@@ -6,13 +6,12 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Controller;
 
+use APS\Common\Refuses;
 use OCA\Farmacia\AppInfo\Application;
 use OCA\Farmacia\Exception\InvalidImportException;
 use OCA\Farmacia\Service\ApplyService;
 use OCA\Farmacia\Service\ImportService;
 use OCP\AppFramework\Controller;
-use OCP\AppFramework\Db\DoesNotExistException;
-use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
@@ -30,6 +29,7 @@ use OCP\IUserSession;
  * cannot drift (territorio's doctrine).
  */
 class ImportController extends Controller {
+	use Refuses;
 	/**
 	 * A planilla is a few hundred rows of text — well under a megabyte.
 	 * The cap fails a mistaken upload immediately and cheaply, before PHP
@@ -138,25 +138,5 @@ class ImportController extends Controller {
 			$id,
 			$this->userSession->getUser()?->getUID(),
 		));
-	}
-
-	/**
-	 * One place to turn the service's refusals into status codes.
-	 *
-	 * @param callable(): array<string, mixed> $action
-	 */
-	private function attempt(callable $action): JSONResponse {
-		try {
-			return new JSONResponse($action());
-		} catch (InvalidImportException $e) {
-			// The submission was understood and refused.
-			return new JSONResponse(['message' => $e->getMessage()], Http::STATUS_UNPROCESSABLE_ENTITY);
-		} catch (DoesNotExistException) {
-			return new JSONResponse(['message' => 'no existe'], Http::STATUS_NOT_FOUND);
-		}
-	}
-
-	private function refuse(string $message): JSONResponse {
-		return new JSONResponse(['message' => $message], Http::STATUS_UNPROCESSABLE_ENTITY);
 	}
 }

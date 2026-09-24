@@ -54,6 +54,28 @@ describe('matches', () => {
 	})
 })
 
+describe('emptyFilter', () => {
+	it('is the browsing default: the whole arsenal, nothing typed', () => {
+		expect(emptyFilter()).toEqual({ lens: 'arsenal', query: '' })
+	})
+})
+
+describe('filterMedications', () => {
+	it('composes the lens predicate and the search over its own fixtures', () => {
+		// The lens semantics through the composition the App actually calls
+		// (L2-21): embarazo keeps the fdaEmbarazo set, renal keeps ajusteRenal,
+		// and the query narrows inside what the lens kept.
+		const embarazo = filterMedications(MEDICATIONS, { lens: 'embarazo', query: '' }, byId)
+		expect(embarazo.map((m) => m.codigo)).toEqual(['F-001', 'F-003'])
+
+		const renal = filterMedications(MEDICATIONS, { lens: 'renal', query: '' }, byId)
+		expect(renal.map((m) => m.codigo)).toEqual(['F-002'])
+
+		const both = filterMedications(MEDICATIONS, { lens: 'embarazo', query: 'paracet' }, byId)
+		expect(both.map((m) => m.codigo)).toEqual(['F-001'])
+	})
+})
+
 describe('lensPredicate', () => {
 	it('arsenal keeps everything', () => {
 		const p = lensPredicate('arsenal')

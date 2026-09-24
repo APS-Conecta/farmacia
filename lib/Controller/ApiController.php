@@ -6,8 +6,8 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Controller;
 
+use APS\Common\Refusal;
 use OCA\Farmacia\AppInfo\Application;
-use OCA\Farmacia\Exception\InvalidMedicationException;
 use OCA\Farmacia\Service\MedicationService;
 use OCA\Farmacia\Service\VocabularyService;
 use OCP\AppFramework\Db\DoesNotExistException;
@@ -175,7 +175,7 @@ class ApiController extends OCSController {
 	public function create(): DataResponse {
 		try {
 			return new DataResponse($this->medications->create($this->request->getParams()), Http::STATUS_CREATED);
-		} catch (InvalidMedicationException $e) {
+		} catch (Refusal $e) {
 			return $this->refuse($e->getMessage());
 		}
 	}
@@ -194,7 +194,7 @@ class ApiController extends OCSController {
 	 */
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: self::READ_LIMIT, period: self::PERIOD)]
-	#[ApiRoute(verb: 'GET', url: '/api/v1/medicamentos/{id}')]
+	#[ApiRoute(verb: 'GET', url: '/api/v1/medicamentos/{id}', requirements: ['id' => '\d+'])]
 	public function show(int $id): DataResponse {
 		try {
 			return new DataResponse($this->medications->read($id));
@@ -218,11 +218,11 @@ class ApiController extends OCSController {
 	 */
 	#[NoAdminRequired]
 	#[UserRateLimit(limit: self::WRITE_LIMIT, period: self::PERIOD)]
-	#[ApiRoute(verb: 'PUT', url: '/api/v1/medicamentos/{id}')]
+	#[ApiRoute(verb: 'PUT', url: '/api/v1/medicamentos/{id}', requirements: ['id' => '\d+'])]
 	public function update(int $id): DataResponse {
 		try {
 			return new DataResponse($this->medications->update($id, $this->request->getParams()));
-		} catch (InvalidMedicationException $e) {
+		} catch (Refusal $e) {
 			return $this->refuse($e->getMessage());
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
@@ -296,7 +296,9 @@ class ApiController extends OCSController {
 		// The create/update refusals only — understood and refused, the app's
 		// 422 discipline. index()'s unintelligible-query refusals answer 400
 		// inline, where they happen, so the two statuses cannot be confused
-		// by a shared door.
+		// by a shared door. The trait (APS\Common\Refuses) is the internal
+		// doors' one mapping; this half stays a DataResponse because the OCS
+		// envelope is not a JSONResponse.
 		return new DataResponse(['message' => $message], Http::STATUS_UNPROCESSABLE_ENTITY);
 	}
 }

@@ -6,12 +6,10 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Controller;
 
+use APS\Common\Refuses;
 use OCA\Farmacia\AppInfo\Application;
-use OCA\Farmacia\Exception\InvalidVocabularyException;
 use OCA\Farmacia\Service\VocabularyService;
 use OCP\AppFramework\Controller;
-use OCP\AppFramework\Db\DoesNotExistException;
-use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
@@ -25,6 +23,7 @@ use OCP\IRequest;
  * name for a thing each CESFAM defines for itself.
  */
 class AbasteceController extends Controller {
+	use Refuses;
 	public function __construct(
 		IRequest $request,
 		private VocabularyService $vocabulary,
@@ -35,13 +34,13 @@ class AbasteceController extends Controller {
 	#[NoAdminRequired]
 	public function create(): JSONResponse {
 		return $this->attempt(fn (): array
-			=> $this->vocabulary->addChannel((string)($this->request->getParam('label') ?? '')));
+			=> $this->vocabulary->addChannel(self::label($this->request->getParam('label'))));
 	}
 
 	#[NoAdminRequired]
 	public function update(string $slug): JSONResponse {
 		return $this->attempt(fn (): array
-			=> $this->vocabulary->renameChannel($slug, (string)($this->request->getParam('label') ?? '')));
+			=> $this->vocabulary->renameChannel($slug, self::label($this->request->getParam('label'))));
 	}
 
 	/** No body and no `?force` — see CategoryController::destroy. */
@@ -50,19 +49,9 @@ class AbasteceController extends Controller {
 		return $this->attempt(fn (): array => $this->vocabulary->removeChannel($slug));
 	}
 
-	/**
-	 * One place to turn the service's refusals into status codes.
-	 *
-	 * @param callable(): array<int|string, mixed> $action
-	 */
-	private function attempt(callable $action): JSONResponse {
-		try {
-			return new JSONResponse($action());
-		} catch (InvalidVocabularyException $e) {
-			// The submission was understood and refused.
-			return new JSONResponse(['message' => $e->getMessage()], Http::STATUS_UNPROCESSABLE_ENTITY);
-		} catch (DoesNotExistException) {
-			return new JSONResponse(['message' => 'no existe'], Http::STATUS_NOT_FOUND);
-		}
+	/** See CategoryController::label — the two controllers stay structurally
+	 * identical, this included (L2-03). */
+	private static function label(mixed $value): string {
+		return is_string($value) ? $value : '';
 	}
 }

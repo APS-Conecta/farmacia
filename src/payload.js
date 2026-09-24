@@ -13,6 +13,42 @@
  * must not pretend to.
  */
 
+/**
+ * The FDA pregnancy categories — MedicationService::FDA_CATEGORIES' twin,
+ * stated here because TWO spellings of a five-letter domain are one too
+ * many (L2-18). payload.test.js pins the pair the twins way: the test
+ * reads the PHP constant and asserts the letters match.
+ */
+export const FDA_OPTIONS = ['A', 'B', 'C', 'D', 'X']
+
+/**
+ * One saved payload, into the set it belongs in and out of the other
+ * (L2-17 — App.vue's mergeMedication body, moved verbatim): a record that
+ * changed `retired` by definition crossed sets; a new one unshifts,
+ * because the list reads newest-first and a record that saved into
+ * invisibility would read as data loss.
+ *
+ * @param {{medications: Array, retired: Array}} sets the two lists, as
+ *        App.vue holds them
+ * @param {object} data the server's saved row
+ * @return {{medications: Array, retired: Array}} NEW arrays — App.vue
+ *         assigns them straight over its own, so reactivity holds
+ */
+export function mergeMedication(sets, data) {
+	const into = data.retired ? 'retired' : 'medications'
+	const outOf = data.retired ? 'medications' : 'retired'
+
+	const index = sets[into].findIndex((m) => m.id === data.id)
+	const kept = index === -1
+		? [data, ...sets[into]]
+		: sets[into].map((m, i) => (i === index ? data : m))
+
+	return {
+		[into]: kept,
+		[outOf]: sets[outOf].filter((m) => m.id !== data.id),
+	}
+}
+
 /** A new record: nothing typed, nothing chosen, empty child sets. */
 export function blankDraft() {
 	return {

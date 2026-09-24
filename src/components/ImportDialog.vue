@@ -222,7 +222,7 @@ import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 
-import { BATCH_STATE_LABELS, DISPOSITION_LABELS, counters, decisionFor, pendingRows } from '../import.js'
+import { BATCH_STATE_LABELS, DISPOSITION_LABELS, counters, decisionFor, decisionReady as ready, pendingRows } from '../import.js'
 
 export default {
 	name: 'ImportDialog',
@@ -318,17 +318,10 @@ export default {
 		},
 
 		/**
-		 * A category decision is only ready when a category is picked: the
-		 * server would read an unpicked one as id 0 and sentence «La
-		 * categoría 0 no existe.» — a sentence that names nothing the person
-		 * typed. The channel decision is always ready: none picked is the
-		 * «dejar sin canal» answer, a legal decision.
+		 * The rule lives in import.js now (L2-18) — same semantics, tested.
 		 */
 		decisionReady() {
-			if (this.decisionRow === null) {
-				return false
-			}
-			return !this.owed.categoria || (this.decisions[this.deciding]?.categoryId ?? null) !== null
+			return ready(this.decisionRow, this.decisions[this.deciding], Boolean(this.owed?.categoria))
 		},
 	},
 

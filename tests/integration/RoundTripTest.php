@@ -6,7 +6,10 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Tests\Integration;
 
+use OCA\Farmacia\Db\MedicationMapper;
+use OCA\Farmacia\Db\MedicationRestrictionMapper;
 use OCA\Farmacia\Exception\InvalidImportException;
+use OCA\Farmacia\Exception\InvalidMedicationException;
 use OCA\Farmacia\Service\CsvReader;
 use OCA\Farmacia\Service\ExportService;
 use OCA\Farmacia\Service\MedicationService;
@@ -71,7 +74,21 @@ final class RoundTripTest extends IntegrationTestCase {
 	}
 
 	public function testARestrictionCarryingTheSeparatorSurfacesForReview(): void {
-		$this->medication('RT-S1', ['restricciones' => ['Solo receta retenida', 'Visita | firma']]);
+		// L2-13 made the write door refuse this record, so it can only exist
+		// as legacy data — written before the refusal did. Planted through
+		// the mapper, which is what a row that predates the guard is: the
+		// review-surface detection stays for exactly these.
+		$mapper = Server::get(MedicationMapper::class);
+		$entity = new \OCA\Farmacia\Db\Medication();
+		$entity->setCodigo('RT-S1');
+		$entity->setProducto('Restricción legada');
+		$entity->setCategoryId($this->categoryIdBySlug('otros'));
+		$entity = $mapper->insert($entity);
+		$this->created[] = (int)$entity->getId();
+		Server::get(MedicationRestrictionMapper::class)->replaceFor(
+			(int)$entity->getId(),
+			['Solo receta retenida', 'Visita | firma'],
+		);
 
 		$review = $this->stage($this->exports->export()['body'], 'export.csv');
 
@@ -141,6 +158,25 @@ final class RoundTripTest extends IntegrationTestCase {
 		$this->expectException(InvalidImportException::class);
 		$this->expectExceptionMessageMatches('/no tiene filas/');
 		$this->stage($file['body']);
+	}
+
+	/**
+	 * L2-13: the write door used to accept what the round-trip cannot
+	 * carry — a stored «|» restriction staged as unsupported at the NEXT
+	 * import's review, discovered far from where it was typed. The refusal
+	 * is MedicationService::restrictionList's, with cleanLabel's own
+	 * sentence for the field it names.
+	 */
+	public function testARestrictionCarryingTheSeparatorIsRefusedAtWriteTime(): void {
+		$this->expectException(InvalidMedicationException::class);
+		$this->expectExceptionMessage('no puede contener «|»');
+
+		Server::get(MedicationService::class)->create([
+			'codigo' => 'SEP-1',
+			'producto' => 'Separador',
+			'categoryId' => $this->categoryIdBySlug('analgesicos_antipireticos_antiinflamatorios'),
+			'restricciones' => ['receta | retención'],
+		]);
 	}
 
 	/** A channel through the real vocabulary, registered for cleanup. */

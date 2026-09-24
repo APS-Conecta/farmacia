@@ -56,23 +56,6 @@ class ImportService {
 	/** The FDA pregnancy categories, as MedicationService states them. */
 	private const FDA_CATEGORIES = ['A', 'B', 'C', 'D', 'X'];
 
-	/**
-	 * The cell caps that mirror the migration's columns — stated here so a
-	 * row that could never be written (the column would refuse it) is
-	 * flagged at stage time, not refused by the apply after the person has
-	 * already reviewed it. Key → [max, the column's Spanish name].
-	 *
-	 * @var array<string, array{int, string}>
-	 */
-	private const CAPS = [
-		'codigo' => [128, 'Código'],
-		'producto' => [255, 'Producto'],
-		'farmaco' => [255, 'Fármaco (DCI)'],
-		'mg' => [64, 'Mg'],
-		'presentacion' => [255, 'Presentación'],
-		'programa' => [128, 'Programa'],
-	];
-
 	public function __construct(
 		private CsvReader $csv,
 		private CategoryMapper $categories,
@@ -243,7 +226,13 @@ class ImportService {
 		$decided = false;
 
 		if (array_key_exists('categoryId', $input)) {
-			$categoryId = (int)$input['categoryId'];
+			// The same L2-03 guard MedicationService::apply carries — the
+			// decision door is a write door too.
+			$given = $input['categoryId'] ?? null;
+			$categoryId = is_int($given) || (is_string($given) && ctype_digit($given)) ? (int)$given : null;
+			if ($categoryId === null) {
+				throw new InvalidImportException('La categoría tiene que ser un número.');
+			}
 			try {
 				$this->categories->find($categoryId);
 			} catch (DoesNotExistException $e) {
@@ -280,9 +269,29 @@ class ImportService {
 		// stands NOW — a medication retired between the upload and the
 		// decision reads skipped here, not at the apply.
 		$pending = $payload['pending'] ?? [];
-		$stored = $row->getCodigo() === ''
-			? null
-			: ($this->storedByCodigo()[$row->getCodigo()] ?? null);
+		// ONE record, not the vademécum (L2-08): a 400-row planilla with 30
+		// vocabulary decisions re-read every medication — live, retired and
+		// three bulk child lists — 30 times, against the app's own zero-JOIN
+		// stage-time budget. The single-record shape is ApplyService::
+		// beforeImage's: find by the código, read the three children.
+		$stored = null;
+		if ($row->getCodigo() !== '') {
+			try {
+				$medication = $this->medications->findByCodigo($row->getCodigo());
+				$stored = [
+					'retired' => (bool)$medication->getRetired(),
+					'comparable' => $medication->comparable(),
+					'ges' => $this->ges->findAllFor((int)$medication->getId()),
+					'restricciones' => $this->restrictions->findAllFor((int)$medication->getId()),
+					'abastece' => $this->abastece->findAllFor((int)$medication->getId()),
+				];
+			} catch (DoesNotExistException) {
+					// A código that stopped resolving between stage and decision reads
+					// as create here — the apply's own resolve() is the door that
+					// refuses a world that moved, and re-deriving a disposition is not
+					// that door.
+				}
+		}
 
 		if ($stored === null) {
 			$disposition = 'create';
@@ -364,7 +373,7 @@ class ImportService {
 			}
 		}
 
-		foreach (self::CAPS as $key => [$max, $column]) {
+		foreach (MedicationService::CELL_CAPS as $key => [$max, $column]) {
 			if (array_key_exists($key, $payload) && mb_strlen(trim((string)$payload[$key])) > $max) {
 				$problems[] = sprintf('la celda %s pasa de %d caracteres', $column, $max);
 			}

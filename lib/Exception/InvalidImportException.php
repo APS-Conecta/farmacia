@@ -6,8 +6,9 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Exception;
 
+use APS\Common\Refusal;
 use RuntimeException;
 
 /** Thrown when an import is refused with a sentence a person reads, rather than a stack trace. */
-class InvalidImportException extends RuntimeException {
+class InvalidImportException extends RuntimeException implements Refusal {
 }

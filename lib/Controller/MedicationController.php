@@ -6,17 +6,16 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Controller;
 
+use APS\Common\Refuses;
 use OCA\Farmacia\AppInfo\Application;
-use OCA\Farmacia\Exception\InvalidMedicationException;
 use OCA\Farmacia\Service\MedicationService;
 use OCP\AppFramework\Controller;
-use OCP\AppFramework\Db\DoesNotExistException;
-use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
 
 class MedicationController extends Controller {
+	use Refuses;
 	public function __construct(
 		IRequest $request,
 		private MedicationService $medications,
@@ -47,15 +46,5 @@ class MedicationController extends Controller {
 	#[NoAdminRequired]
 	public function retired(): JSONResponse {
 		return $this->attempt(fn (): array => $this->medications->listRetired());
-	}
-
-	private function attempt(callable $action): JSONResponse {
-		try {
-			return new JSONResponse($action());
-		} catch (InvalidMedicationException $e) {
-			return new JSONResponse(['message' => $e->getMessage()], Http::STATUS_UNPROCESSABLE_ENTITY);
-		} catch (DoesNotExistException) {
-			return new JSONResponse(['message' => 'no existe'], Http::STATUS_NOT_FOUND);
-		}
 	}
 }

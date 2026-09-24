@@ -16,13 +16,16 @@ return [
 		// Every user who can open the app may edit the vademécum; the safety
 		// net is retirement, not permissions.
 		['name' => 'medication#create', 'url' => '/medications', 'verb' => 'POST'],
-		['name' => 'medication#update', 'url' => '/medications/{id}', 'verb' => 'PUT'],
+		['name' => 'medication#update', 'url' => '/medications/{id}', 'verb' => 'PUT',
+			'requirements' => ['id' => '\d+']],
 		// Retires rather than destroys. /medications/retired cannot be confused
 		// with /medications/{id} because no GET route takes an {id} — the
 		// structural invariant territorio documents at its own table.
 		['name' => 'medication#retired', 'url' => '/medications/retired', 'verb' => 'GET'],
-		['name' => 'medication#destroy', 'url' => '/medications/{id}', 'verb' => 'DELETE'],
-		['name' => 'medication#restore', 'url' => '/medications/{id}/restore', 'verb' => 'POST'],
+		['name' => 'medication#destroy', 'url' => '/medications/{id}', 'verb' => 'DELETE',
+			'requirements' => ['id' => '\d+']],
+		['name' => 'medication#restore', 'url' => '/medications/{id}/restore', 'verb' => 'POST',
+			'requirements' => ['id' => '\d+']],
 
 		// The vocabulary is the clinic's own data the moment the seed lands
 		// (EnsureSeedData's words): both lists are editable by the whole team,
@@ -51,16 +54,21 @@ return [
 		// batch after a page reload IS a GET by id.
 		['name' => 'import#upload', 'url' => '/import', 'verb' => 'POST'],
 		['name' => 'import#batches', 'url' => '/import/batches', 'verb' => 'GET'],
-		['name' => 'import#review', 'url' => '/import/{id}', 'verb' => 'GET'],
-		['name' => 'import#decide', 'url' => '/import/rows/{id}/decision', 'verb' => 'POST'],
+		['name' => 'import#review', 'url' => '/import/{id}', 'verb' => 'GET',
+			'requirements' => ['id' => '\d+']],
+		['name' => 'import#decide', 'url' => '/import/rows/{id}/decision', 'verb' => 'POST',
+			'requirements' => ['id' => '\d+']],
 
 		// Landing and unlanding a review: apply walks the rows the person
 		// approved, discard closes the batch without landing anything, and
 		// revert takes an applied batch back out (territorio's import#revert
 		// shape). POST, all three: each one moves the batch's state.
-		['name' => 'import#apply', 'url' => '/import/{id}/apply', 'verb' => 'POST'],
-		['name' => 'import#discard', 'url' => '/import/{id}/discard', 'verb' => 'POST'],
-		['name' => 'import#revert', 'url' => '/import/{id}/revert', 'verb' => 'POST'],
+		['name' => 'import#apply', 'url' => '/import/{id}/apply', 'verb' => 'POST',
+			'requirements' => ['id' => '\d+']],
+		['name' => 'import#discard', 'url' => '/import/{id}/discard', 'verb' => 'POST',
+			'requirements' => ['id' => '\d+']],
+		['name' => 'import#revert', 'url' => '/import/{id}/revert', 'verb' => 'POST',
+			'requirements' => ['id' => '\d+']],
 
 		// The export is the import's mirror: the same grammar, the other
 		// direction. One route, no parameters — the whole live arsenal is

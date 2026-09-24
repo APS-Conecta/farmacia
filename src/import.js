@@ -90,3 +90,26 @@ export function decisionFor(row, choice) {
 
 	return decision
 }
+
+/**
+ * Whether a row's decision can be committed (L2-18 — ImportDialog's
+ * computed, moved so the server semantics it embeds are testable):
+ * a category decision is only ready when a category is picked — the
+ * server refuses an unpicked one («La categoría tiene que ser un número.»,
+ * the type guard this same phase lands at the decision door), and an
+ * unpicked one read as id 0 was the sentence this rule exists to keep
+ * away from the person. The channel decision is always ready: none picked
+ * IS the «dejar sin canal» answer, a legal decision.
+ *
+ * @param {?object} row the row being decided, or null
+ * @param {?{categoryId: ?number, abasteceIds: number[]}} decision the
+ *        seeded picks for that row
+ * @param {boolean} owedCategoria whether the row owes a category decision
+ * @return {boolean}
+ */
+export function decisionReady(row, decision, owedCategoria) {
+	if (row === null) {
+		return false
+	}
+	return !owedCategoria || (decision?.categoryId ?? null) !== null
+}

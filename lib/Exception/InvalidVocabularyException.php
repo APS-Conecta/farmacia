@@ -6,8 +6,9 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Exception;
 
+use APS\Common\Refusal;
 use RuntimeException;
 
 /** Thrown when what a person submitted is not a vocabulary word this app will store. */
-class InvalidVocabularyException extends RuntimeException {
+class InvalidVocabularyException extends RuntimeException implements Refusal {
 }
