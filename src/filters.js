@@ -11,22 +11,14 @@
  * worrying who else might change it. None of it ever leaves the browser.
  */
 
+import { fold, textMatches, listFor as sharedListFor } from './aps/filters.js'
+
+export { fold }
+
 /** Nothing narrowed: the full arsenal, no search typed. */
 export function emptyFilter() {
 	return { lens: 'arsenal', query: '' }
 }
-
-/**
- * Accent-folded, case-down text for comparison.
- *
- * NFD splits a letter from its diacritic so \p{Diacritic} can drop it.
- * Someone looking for "paracetamol" should find "Paracetamol", and someone
- * who typed "paracetámol" but missed the accent still reaches the right row.
- */
-export const fold = (value) => String(value ?? '')
-	.normalize('NFD')
-	.replace(/\p{Diacritic}/gu, '')
-	.toLowerCase()
 
 /**
  * Whether a medication answers to what someone typed.
@@ -39,16 +31,7 @@ export const fold = (value) => String(value ?? '')
  * hundreds of rows in memory; index when search actually feels slow.
  */
 export function matches(medication, query, categoryLabel) {
-	const needle = fold(query).trim()
-	if (needle === '') {
-		return true
-	}
-
-	return [
-		medication.producto,
-		medication.farmaco,
-		categoryLabel,
-	].some((field) => fold(field).includes(needle))
+	return textMatches(query, [medication.producto, medication.farmaco, categoryLabel])
 }
 
 /**
@@ -93,11 +76,13 @@ export function filterMedications(medications, filter, categoriesById) {
  * are looking for, and ignoring it would overrule an explicit instruction.
  */
 export function listFor({ medications, retiredMedications, showRetired, filter, categoriesById }) {
-	if (!showRetired) {
-		return filterMedications(medications, filter, categoriesById)
-	}
-
-	return retiredMedications.filter((m) => matches(m, filter.query, categoriesById.get(m.categoryId)?.label))
+	return sharedListFor({
+		live: medications,
+		retired: retiredMedications,
+		showRetired,
+		filterLive: (live) => filterMedications(live, filter, categoriesById),
+		matchesOf: (m) => matches(m, filter.query, categoriesById.get(m.categoryId)?.label),
+	})
 }
 
 /** A Map of category id → category object, for O(1) label lookup. */

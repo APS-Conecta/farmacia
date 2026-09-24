@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Service;
 
+use APS\Common\Text;
 use OCA\Farmacia\Db\Category;
 use OCA\Farmacia\Db\CategoryMapper;
 use OCA\Farmacia\Db\Channel;
@@ -35,8 +36,8 @@ class VocabularyService {
 	/** farmacia_category.label and farmacia_abastece.label are VARCHAR(128). */
 	private const LABEL_LENGTH = 128;
 
-	/** farmacia_category.slug and farmacia_abastece.slug are VARCHAR(64). */
-	private const SLUG_LENGTH = 64;
+	/** Deleted — private const SLUG_LENGTH: sole referencing site was the
+	 *  slugFor body that now lives in Text. */
 
 	public function __construct(
 		private CategoryMapper $categories,
@@ -225,25 +226,12 @@ class VocabularyService {
 	}
 
 	/**
-	 * The identifier a label makes: accents off, case down, everything else
-	 * a separator — territorio's rule, copied byte-for-byte because the
-	 * seed's slugs are pre-folded with it (EnsureSeedData says so) and the
-	 * CSV reader will fold planilla cells with it.
-	 *
-	 * Decomposes and drops the combining marks rather than mapping the seven
-	 * Spanish letters: a clinic types what it types, and a list of seven is
-	 * a list that is missing one.
-	 *
-	 * Public and static because it is pure — the one rule on this write
-	 * path with no database in it.
+	 * The identifier a label makes — the shared rule, stated once in
+	 * aps-common's Text (L0-03/L2-04). Kept as a static forward so every call
+	 * site (the planilla headings, the admin write doors, the tests) keeps
+	 * working unchanged.
 	 */
 	public static function slugFor(string $label): string {
-		$decomposed = \Normalizer::normalize($label, \Normalizer::FORM_D);
-		$stripped = preg_replace('/\p{Mn}/u', '', $decomposed === false ? $label : $decomposed);
-		$slug = (string)preg_replace('/[^a-z0-9]+/', '_', mb_strtolower((string)$stripped));
-
-		// Trimmed again after the cut, so a name cut mid-separator does not
-		// make a slug the same label would not make twice.
-		return trim(mb_substr(trim($slug, '_'), 0, self::SLUG_LENGTH), '_');
+		return Text::slugFor($label);
 	}
 }
