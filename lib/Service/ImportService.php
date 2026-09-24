@@ -43,7 +43,7 @@ use OCP\AppFramework\Db\DoesNotExistException;
  * create (no stored medication carries the código), update (one does, and
  * the row would change it), unchanged (one does, and the derived row
  * matches it), skipped (one does, and it is RETIRED — retirement is a
- * local decision an import must not undo, territorio's ADR-0003 argument
+ * local decision an import must not undo, territorio#ADR-0003's argument
  * restated), duplicate (the planilla repeats a código; the first row owns
  * it and the note names its line), unsupported (the row itself will not
  * parse as a medication).

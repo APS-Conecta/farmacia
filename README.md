@@ -3,7 +3,7 @@
 El vademécum de medicamentos del CESFAM: arsenal farmacológico con información de
 seguridad clínica (categoría FDA en embarazo, ajuste renal, riesgo colinérgico en
 adulto mayor). App propia de APS Conecta Gestión — **lab app, no va en un release**
-(ADR-0005). No contiene datos de pacientes; no gestiona stock.
+(territorio#ADR-0005). No contiene datos de pacientes; no gestiona stock.
 
 ## Estado
 

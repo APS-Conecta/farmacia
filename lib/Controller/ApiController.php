@@ -22,7 +22,7 @@ use OCP\IRequest;
 
 /**
  * The vademécum over OCS — the contract a future suite app reads, and the
- * one with write: epi's GET-only route extended on ADR-0006's own taxonomy,
+ * one with write: epi's GET-only route extended on epidemiologia#ADR-0006's own taxonomy,
  * which sanctions the resource-per-endpoint shape exactly for mutable things
  * with ids and a CRUD surface — what `medicamentos` is.
  *
@@ -98,9 +98,9 @@ class ApiController extends OCSController {
 	 * @param ?string $categoria a category slug, as the vocabulary is addressed everywhere
 	 * @param ?string $gestacion one of A, B, C, D, X
 	 * @param ?string $renal_ajuste `1` to keep only renal-adjusted rows, `0` to not narrow
-	 * @return DataResponse<Http::STATUS_OK|Http::STATUS_BAD_REQUEST|Http::STATUS_NOT_FOUND, list<array<string, mixed>>, array{}>
+	 * @return DataResponse<Http::STATUS_OK|Http::STATUS_BAD_REQUEST|Http::STATUS_NOT_FOUND, list<array{id: int, codigo: string, producto: string, farmaco: ?string, mg: ?string, presentacion: ?string, programa: ?string, trazador: bool, indicacion: ?string, dosificacion: ?string, precauciones: ?string, observaciones: ?string, riesgoColinergicoAm: bool, fdaEmbarazo: ?string, ajusteRenal: ?string, categoryId: int, retired: bool, updatedAt: ?string, ges: list<string>, restricciones: list<string>, abastece: list<string>}>, array{}>
 	 *
-	 * 200: The arsenal — every medication's full payload, children attached
+	 * 200: The arsenal — every medication's full payload, children attached (the served 21 keys: Medication::toClient()'s 18 + ges/restricciones/abastece)
 	 * 400: The request cannot be understood — {message: what the parameter must be} (gestación outside A–X, renal_ajuste not a flag)
 	 * 404: No category carries that slug
 	 */

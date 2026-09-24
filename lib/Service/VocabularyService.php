@@ -106,7 +106,7 @@ class VocabularyService {
 
 	/**
 	 * Removes a category nothing uses: refused while any medication is
-	 * classified under it, retired medications included (ADR-0016's orphan
+	 * classified under it, retired medications included (territorio#ADR-0016's orphan
 	 * argument — see `refuseIfInUse()`). Nothing is reclassified or
 	 * destroyed on the person's behalf, and there is no `?force` for a
 	 * caller to find anywhere.
@@ -178,7 +178,7 @@ class VocabularyService {
 	}
 
 	/**
-	 * The removal guard, ADR-0016's shape: called before any deletion, never
+	 * The removal guard, territorio#ADR-0016's shape: called before any deletion, never
 	 * after, and the count is the caller's — what would be orphaned, not
 	 * what somebody is looking at.
 	 *

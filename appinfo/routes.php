@@ -29,7 +29,7 @@ return [
 		// for the same reason every other write here is — the safety net is
 		// the in-use guard, not permissions. Addressed by slug because the
 		// slug survives a rename; no `?force` anywhere, because removal is
-		// refused while anything still references the word (ADR-0016's
+		// refused while anything still references the word (territorio#ADR-0016's
 		// shape) and there is nothing for a caller to choose.
 		['name' => 'category#create', 'url' => '/categories', 'verb' => 'POST'],
 		['name' => 'category#update', 'url' => '/categories/{slug}', 'verb' => 'PUT'],

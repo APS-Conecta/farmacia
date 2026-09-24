@@ -59,7 +59,7 @@ class CategoryController extends Controller {
 	/**
 	 * No body and no `?force`: while any medication — retired included — is
 	 * classified under the category, the service refuses, and there is
-	 * nothing here for a caller to choose (ADR-0016's shape).
+	 * nothing here for a caller to choose (territorio#ADR-0016's shape).
 	 */
 	#[NoAdminRequired]
 	public function destroy(string $slug): JSONResponse {

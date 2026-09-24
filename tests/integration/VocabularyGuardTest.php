@@ -14,7 +14,7 @@ use OCP\Server;
 /**
  * The in-use guard against the real database: the one property no mock can
  * know — that the count sees a RETIRED medication, so a category or channel
- * a retired record still references is refused, and the orphan ADR-0016
+ * a retired record still references is refused, and the orphan territorio#ADR-0016
  * argues against cannot be created (territorio's TaxonomyRemovalTest split
  * again: the units observe that nothing is deleted; only this can observe
  * that the count is honest).

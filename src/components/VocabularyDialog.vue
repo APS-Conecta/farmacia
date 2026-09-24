@@ -54,7 +54,7 @@
 
 				<!-- Two-step, inline, never a browser confirm(): it blocks the
 				     page, and a refusal that follows the question has to be
-				     readable where the question was — ADR-0016's rule, the
+				     readable where the question was — territorio#ADR-0016's rule, the
 				     same two-step Retirar already uses in this app. -->
 				<template v-else-if="confirming === entry.slug">
 					<span class="vocabulary-dialog__confirm">¿Quitar «{{ entry.label }}»?</span>

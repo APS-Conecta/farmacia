@@ -37,7 +37,7 @@ class MetadataTest extends TestCase {
 		// The rule is "agree", not "exist" (epi's own words): removing a
 		// redundant declaration satisfies it just as well as syncing one.
 		// openapi.json joins the loop the day it exists — a published contract
-		// advertising a version the app does not ship is the drift ADR-0006
+		// advertising a version the app does not ship is the drift epidemiologia#ADR-0006
 		// records once already.
 		$expected = $this->text($this->infoXml(), 'version');
 

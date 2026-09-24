@@ -18,7 +18,10 @@ set -euo pipefail
 CONTAINER="${FARMACIA_CONTAINER:-farmacia-dev-nextcloud-1}"
 APP=/var/www/html/custom_apps/farmacia
 
-run() { docker exec -w "$APP" -u www-data "$CONTAINER" "$@"; }
+# Root, not www-data: this writes tools/ and openapi.json in the repo bind
+# mount, which the host owns — www-data cannot write there (and nothing here
+# touches Nextcloud's own files, so root-in-container is only the generator's).
+run() { docker exec -w "$APP" -u root "$CONTAINER" "$@"; }
 
 if ! run test -f tools/composer.phar; then
 	printf 'Downloading Composer…\n'

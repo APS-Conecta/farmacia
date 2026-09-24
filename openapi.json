@@ -117,7 +117,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "The arsenal — every medication's full payload, children attached",
+                        "description": "The arsenal — every medication's full payload, children attached (the served 21 keys: Medication::toClient()'s 18 + ges/restricciones/abastece)",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -140,8 +140,115 @@
                                                     "type": "array",
                                                     "items": {
                                                         "type": "object",
-                                                        "additionalProperties": {
-                                                            "type": "object"
+                                                        "required": [
+                                                            "id",
+                                                            "codigo",
+                                                            "producto",
+                                                            "farmaco",
+                                                            "mg",
+                                                            "presentacion",
+                                                            "programa",
+                                                            "trazador",
+                                                            "indicacion",
+                                                            "dosificacion",
+                                                            "precauciones",
+                                                            "observaciones",
+                                                            "riesgoColinergicoAm",
+                                                            "fdaEmbarazo",
+                                                            "ajusteRenal",
+                                                            "categoryId",
+                                                            "retired",
+                                                            "updatedAt",
+                                                            "ges",
+                                                            "restricciones",
+                                                            "abastece"
+                                                        ],
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "format": "int64"
+                                                            },
+                                                            "codigo": {
+                                                                "type": "string"
+                                                            },
+                                                            "producto": {
+                                                                "type": "string"
+                                                            },
+                                                            "farmaco": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "mg": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "presentacion": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "programa": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "trazador": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "indicacion": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "dosificacion": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "precauciones": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "observaciones": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "riesgoColinergicoAm": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "fdaEmbarazo": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "ajusteRenal": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "categoryId": {
+                                                                "type": "integer",
+                                                                "format": "int64"
+                                                            },
+                                                            "retired": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "updatedAt": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "ges": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "restricciones": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "abastece": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -176,8 +283,115 @@
                                                     "type": "array",
                                                     "items": {
                                                         "type": "object",
-                                                        "additionalProperties": {
-                                                            "type": "object"
+                                                        "required": [
+                                                            "id",
+                                                            "codigo",
+                                                            "producto",
+                                                            "farmaco",
+                                                            "mg",
+                                                            "presentacion",
+                                                            "programa",
+                                                            "trazador",
+                                                            "indicacion",
+                                                            "dosificacion",
+                                                            "precauciones",
+                                                            "observaciones",
+                                                            "riesgoColinergicoAm",
+                                                            "fdaEmbarazo",
+                                                            "ajusteRenal",
+                                                            "categoryId",
+                                                            "retired",
+                                                            "updatedAt",
+                                                            "ges",
+                                                            "restricciones",
+                                                            "abastece"
+                                                        ],
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "format": "int64"
+                                                            },
+                                                            "codigo": {
+                                                                "type": "string"
+                                                            },
+                                                            "producto": {
+                                                                "type": "string"
+                                                            },
+                                                            "farmaco": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "mg": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "presentacion": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "programa": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "trazador": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "indicacion": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "dosificacion": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "precauciones": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "observaciones": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "riesgoColinergicoAm": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "fdaEmbarazo": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "ajusteRenal": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "categoryId": {
+                                                                "type": "integer",
+                                                                "format": "int64"
+                                                            },
+                                                            "retired": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "updatedAt": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "ges": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "restricciones": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "abastece": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -212,8 +426,115 @@
                                                     "type": "array",
                                                     "items": {
                                                         "type": "object",
-                                                        "additionalProperties": {
-                                                            "type": "object"
+                                                        "required": [
+                                                            "id",
+                                                            "codigo",
+                                                            "producto",
+                                                            "farmaco",
+                                                            "mg",
+                                                            "presentacion",
+                                                            "programa",
+                                                            "trazador",
+                                                            "indicacion",
+                                                            "dosificacion",
+                                                            "precauciones",
+                                                            "observaciones",
+                                                            "riesgoColinergicoAm",
+                                                            "fdaEmbarazo",
+                                                            "ajusteRenal",
+                                                            "categoryId",
+                                                            "retired",
+                                                            "updatedAt",
+                                                            "ges",
+                                                            "restricciones",
+                                                            "abastece"
+                                                        ],
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "integer",
+                                                                "format": "int64"
+                                                            },
+                                                            "codigo": {
+                                                                "type": "string"
+                                                            },
+                                                            "producto": {
+                                                                "type": "string"
+                                                            },
+                                                            "farmaco": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "mg": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "presentacion": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "programa": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "trazador": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "indicacion": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "dosificacion": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "precauciones": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "observaciones": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "riesgoColinergicoAm": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "fdaEmbarazo": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "ajusteRenal": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "categoryId": {
+                                                                "type": "integer",
+                                                                "format": "int64"
+                                                            },
+                                                            "retired": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "updatedAt": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "ges": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "restricciones": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "abastece": {
+                                                                "type": "array",
+                                                                "items": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -696,11 +1017,11 @@
         },
         {
             "name": "export",
-            "description": "The planilla's other door. One route, one file, no branches: there is nothing to refuse — the whole live arsenal is the export, and an empty arsenal is an honest headings-only planilla, not an error — and nothing to confirm, because no personal data is involved (territorio's plain/withContacts split and its export log exist for contacts farmacia never stores; the Not-Building line keeps it that way). GET, not POST, on purpose: the browser can navigate to the download, which makes it a plain link — no fetch, no blob handling, and no CSRF token, which a GET never needed."
+            "description": "The planilla's other door. One route, one file, no branches: there is nothing to refuse — the whole live arsenal is the export, and an empty arsenal is an honest headings-only planilla, not an error — and nothing to confirm, because no personal data is involved (territorio's plain/withContacts split and its export log exist for contacts farmacia never stores; the Not-Building line keeps it that way). GET, not POST, on purpose: the browser can navigate to the download, which makes it a plain link — no fetch, no blob handling, and no CSRF token. A bare navigation never sends one, so #[NoCSRFRequired] is what makes that allowed, not a property of GET (#1)."
         },
         {
             "name": "api",
-            "description": "The vademécum over OCS — the contract a future suite app reads, and the one with write: epi's GET-only route extended on ADR-0006's own taxonomy, which sanctions the resource-per-endpoint shape exactly for mutable things with ids and a CRUD surface — what `medicamentos` is. OCSController rather than a plain Controller for epi's reasons: the OCS envelope is the consumer surface Nextcloud itself serves its dashboards from, and the `OCS-APIRequest` header IS the CSRF protection — verified in-container on this stack (`lib/private/AppFramework/Http/Request.php`'s `passesCSRFCheck` short-circuit, NC 34.0.1), so the POST/PUT here carry no `#[NoCSRFRequired]`: adding one would widen the surface the extracted spec advertises. Consumers send `OCS-APIRequest: true` and get the OCS envelope back: GET /ocs/v2.php/apps/farmacia/api/v1/medicamentos { \"ocs\": { \"meta\": {…}, \"data\": [ …the arsenal… ] } } The payloads are the browser's own — MedicationService's one definition (flat fields, ges/restricciones/abastece attached): a consumer integrates against the same shape the app itself renders, which is the whole point of the service stating that doctrine in S3."
+            "description": "The vademécum over OCS — the contract a future suite app reads, and the one with write: epi's GET-only route extended on epidemiologia#ADR-0006's own taxonomy, which sanctions the resource-per-endpoint shape exactly for mutable things with ids and a CRUD surface — what `medicamentos` is. OCSController rather than a plain Controller for epi's reasons: the OCS envelope is the consumer surface Nextcloud itself serves its dashboards from, and the `OCS-APIRequest` header IS the CSRF protection — verified in-container on this stack (`lib/private/AppFramework/Http/Request.php`'s `passesCSRFCheck` short-circuit, NC 34.0.1), so the POST/PUT here carry no `#[NoCSRFRequired]`: adding one would widen the surface the extracted spec advertises. Consumers send `OCS-APIRequest: true` and get the OCS envelope back: GET /ocs/v2.php/apps/farmacia/api/v1/medicamentos { \"ocs\": { \"meta\": {…}, \"data\": [ …the arsenal… ] } } The payloads are the browser's own — MedicationService's one definition (flat fields, ges/restricciones/abastece attached): a consumer integrates against the same shape the app itself renders, which is the whole point of the service stating that doctrine in S3."
         }
     ]
 }

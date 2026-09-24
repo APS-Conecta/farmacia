@@ -121,7 +121,7 @@ class MedicationMapper extends QBMapper {
 	/**
 	 * How many medications — live AND retired — are classified under one
 	 * category: the vocabulary's in-use count (VocabularyService). The
-	 * retired are included on ADR-0016's argument, which the schema makes
+	 * retired are included on territorio#ADR-0016's argument, which the schema makes
 	 * stronger here than it was in territorio: no foreign key exists to
 	 * catch the dangling reference a restore would resurrect, so the count
 	 * answers "what would be orphaned" and never "what is somebody
