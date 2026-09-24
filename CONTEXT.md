@@ -1,5 +1,7 @@
 # Farmacia — glosario
 
+Cross-repo ADR citations are `repo#ADR-NNNN` (`territorio#ADR-0016`); in-repo citations stay bare. The org-wide contracts index lives in `gestion/docs/CONTRACTS.md`.
+
 Las palabras del dominio, fijadas para que el código diga lo mismo que el equipo.
 _Evitar_ marca el término que no debe aparecer.
 
