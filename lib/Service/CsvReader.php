@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Service;
 
+use APS\Common\Csv;
 use OCA\Farmacia\Exception\InvalidImportException;
 
 /**
@@ -123,64 +124,24 @@ class CsvReader {
 	}
 
 	/**
-	 * The file as UTF-8, decided rather than guessed (territorio's rule,
-	 * copied for the same file): bytes that are not valid UTF-8 are
-	 * Windows-1252, which is what Excel writes when it is not asked for
-	 * UTF-8. There is deliberately no BOM strip: headings match on their
-	 * folded slug and the marker is neither a letter nor a digit, so the
-	 * folding takes it off with the accents — CsvReaderTest holds that
-	 * through the real path.
+	 * The file as UTF-8 — the shared rule (aps-common's Csv::utf8; the
+	 * "copied for the same file" note in the old docblock is now structural:
+	 * there is one file). No BOM strip, for the reason Csv::utf8 states.
 	 */
 	private static function utf8(string $csv): string {
-		return mb_check_encoding($csv, 'UTF-8')
-			? $csv
-			: (string)mb_convert_encoding($csv, 'UTF-8', 'Windows-1252');
+		return Csv::utf8($csv);
 	}
 
 	/**
-	 * Every record of the file, parsed. `fgetcsv` over a stream rather than
-	 * `str_getcsv` per line, because a Dosificación cell somebody typed into
-	 * a spreadsheet can contain a line break and only the stream reader
-	 * knows that the quoted field has not ended. Blank records stay in the
-	 * numbering — the record a spreadsheet leaves blank still occupies a
-	 * row a person can see — and are dropped as rows by `row()`.
+	 * Every record of the file, parsed — the RFC 4180 stream dialect is
+	 * aps-common's Csv::rows. Blank records stay in the numbering ([null]
+	 * rows) — the record a spreadsheet leaves blank still occupies a row a
+	 * person can see — and are dropped as rows by `row()`.
 	 *
 	 * @return list<list<?string>>
 	 */
 	private static function parsed(string $csv): array {
-		$handle = fopen('php://temp', 'r+');
-		fwrite($handle, $csv);
-		rewind($handle);
-
-		$rows = [];
-		// The empty `$escape` is the writer's own dialect: PHP's historical
-		// backslash escape is not in RFC 4180 and would eat a backslash
-		// somebody typed in a dosificación.
-		$delimiter = self::delimiterOf($csv);
-		while (($cells = fgetcsv($handle, 0, $delimiter, '"', '')) !== false) {
-			$rows[] = $cells;
-		}
-		fclose($handle);
-
-		return $rows;
-	}
-
-	/**
-	 * Which character separates the cells, read off the header line.
-	 * Excel in es-CL writes `;`, because the comma is already the decimal
-	 * separator in this locale — a comma-only reader mis-parses every file
-	 * a Chilean CESFAM saves. Headings only, because a comma in a heading is
-	 * a separator and a comma in an address is not.
-	 *
-	 * ponytail: two candidates, not sniffing. A tab-separated file would be
-	 * read as one column and refused for having no «Código»; add the tab
-	 * when somebody brings one.
-	 */
-	private static function delimiterOf(string $csv): string {
-		$heading = strstr($csv, "\n", true);
-		$heading = $heading === false ? $csv : $heading;
-
-		return substr_count($heading, ';') > substr_count($heading, ',') ? ';' : ',';
+		return Csv::rows($csv);
 	}
 
 	/**

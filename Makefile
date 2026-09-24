@@ -9,11 +9,12 @@
 # Slices add their gates here (openapi, smoke) as they land.
 
 IMG := farmacia-test
-DOCKER := docker run --rm -v "$(CURDIR)":/app -w /app $(IMG)
+APS ?= $(CURDIR)/../aps-common
+DOCKER := docker run --rm -v "$(CURDIR)":/app -v "$(APS)":/aps-common -w /app $(IMG)
 COMPOSE := docker compose -f compose.dev.yaml
 OCC := $(COMPOSE) exec --user www-data nextcloud php occ
 
-.PHONY: test build-test-image deps test-integration integration instance-up instance-occ instance-down instance-clean openapi smoke clean
+.PHONY: test build-test-image deps test-integration integration instance-up instance-occ instance-down instance-clean openapi smoke clean aps-sync aps-drift
 
 build-test-image:
 	docker build -q -f Dockerfile.test -t $(IMG) . >/dev/null
@@ -53,6 +54,29 @@ instance-clean:
 # The extractor is fetched into tools/ on first run; the file is committed.
 openapi:
 	scripts/openapi.sh
+
+# Copy the aps-common package into its committed home: vendor/aps/common/src
+# (the subtree the tarball ships) and the OC\Hooks\Emitter test stub. The
+# sibling checkout must exist beside this repo (org layout).
+aps-sync:
+	@test -d "$(APS)/src" || { echo "aps-common not found at $(APS) — clone the sibling first"; exit 1; }
+	mkdir -p vendor/aps/common tests/stubs/OC/Hooks
+	rm -rf vendor/aps/common/src
+	git -C "$(APS)" archive HEAD src | tar -x -C vendor/aps/common
+	cp "$(APS)/stub/OC/Hooks/Emitter.php" tests/stubs/OC/Hooks/Emitter.php
+
+# vendor/aps/common/src is committed, so it can drift from the package the
+# way js/ can drift from src/. `git status --porcelain` (not diff --exit-code)
+# so a rename that deletes one file and adds another is seen — the same
+# lesson territorio's js/ CI arm records. farmacia has no CI tree yet — this
+# target IS the gate until the canon phase gives it one.
+aps-drift: aps-sync
+	@drift="$$(git status --porcelain -- vendor/aps/common/src tests/stubs/OC/Hooks/Emitter.php)"; \
+	if [ -n "$$drift" ]; then \
+		printf '%s\n' "$$drift"; \
+		echo "::error::vendor/aps/common/src is behind aps-common. Run 'make aps-sync' and commit the result."; \
+		exit 1; \
+	fi
 
 # The wiring no unit test can see, against the throwaway instance (S11):
 # the 412/200 header pair, the no-CSRF-token write, the 400/404 refusals,

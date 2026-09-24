@@ -6,6 +6,8 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Service;
 
+use APS\Common\Csv;
+
 /**
  * The arsenal as a planilla — the export half of the round-trip pair.
  *
@@ -81,7 +83,7 @@ class CsvWriter {
 
 		// A BOM, so that Excel opens «Analgésicos» rather than «AnalgÃ©sicos».
 		// LibreOffice asks; Excel does not, it just guesses Latin-1.
-		return "\u{FEFF}" . implode("\n", $lines) . "\n";
+		return Csv::BOM . implode("\n", $lines) . "\n";
 	}
 
 	/**
@@ -125,23 +127,11 @@ class CsvWriter {
 	}
 
 	/**
-	 * One cell, with anything a spreadsheet would run defused — territorio's
-	 * own rule, still true here with more riding on it: every user of this
-	 * instance can edit every record, so "a colleague typed it" is not a
-	 * defence — the formula runs on the machine of whoever opens the export,
-	 * which is usually somebody else.
-	 *
-	 * A leading apostrophe is the spreadsheet's own "this is text" marker, and
-	 * the exact input CsvGrammar::unquote reverses — the one case the bytes
-	 * cannot carry is a cell genuinely beginning with «'=», and the refusal to
-	 * touch apostrophe-initial cells (the marker is only for the six trigger
-	 * characters) is what keeps that case rare. A phone number beginning with
-	 * `+56` gets the marker too: that is the price of not guessing which
-	 * leading `+` is arithmetic.
+	 * One cell, defused — territorio's own rule, now stated once in
+	 * aps-common's Csv::text (the formula-threat reasoning, the apostrophe
+	 * trade, and the CsvGrammar::unquote reversal all live there).
 	 */
 	private static function text(mixed $value): string {
-		$text = (string)$value;
-
-		return $text !== '' && str_contains("=+-@\t\r", $text[0]) ? "'" . $text : $text;
+		return Csv::text($value);
 	}
 }

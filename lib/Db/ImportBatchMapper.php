@@ -29,14 +29,14 @@ class ImportBatchMapper extends QBMapper {
 	}
 
 	/**
-	 * The recent runs, newest first, a page of them: the list is a person's
+	 * The recent runs, newest first, a page of 25 — the list is a person's
 	 * way back to a batch they staged before lunch, not an audit log.
 	 *
 	 * @return ImportBatch[]
 	 */
-	public function findRecent(int $limit = 25): array {
+	public function findRecent(): array {
 		$qb = $this->db->getQueryBuilder();
-		$qb->select('*')->from($this->getTableName())->orderBy('id', 'DESC')->setMaxResults($limit);
+		$qb->select('*')->from($this->getTableName())->orderBy('id', 'DESC')->setMaxResults(25);
 
 		return $this->findEntities($qb);
 	}
