@@ -2,9 +2,10 @@
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
          bootstrap="tests/unit/bootstrap.php"
-         colors="true">
+         colors="true"
+         cacheDirectory=".phpunit.cache">
     <testsuites>
-        <testsuite name="Unit">
+        <testsuite name="unit">
             <directory>tests/unit</directory>
         </testsuite>
     </testsuites>

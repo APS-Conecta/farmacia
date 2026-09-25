@@ -1,0 +1,68 @@
+# farmacia's own CI — the org template for a suite app (canon docs.yml runs the
+# doc gate; this file runs the code gates): the unit suite in the bare-PHP
+# container, the js suite + the committed-bundle no-drift arm, aps-drift, and
+# the smoke suite against a REAL provisioned instance — the wiring no unit test
+# can see, the arm Phase 3's deferral names as the template.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    name: PHP tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      # aps-common as a path sibling, exactly as a dev machine and territorio's CI resolve it
+      - name: aps-common sibling
+        run: git clone --depth 1 https://github.com/APS-Conecta/aps-common.git ../aps-common
+      - run: make test
+      - run: make aps-drift
+
+  js:
+    name: Frontend tests, lint and bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+      - run: npm ci
+      - run: npm run lint-js
+      - run: npm test
+      # js/ is committed — the bundle IS the deployment (the smoke suite asserts
+      # it too); src/ moving without a rebuild ships an app that is not the repo.
+      - name: The committed bundle is the deployment — rebuild and require no drift
+        run: |
+          npm run build
+          git diff --exit-code js/ || { echo "::error::js/ drifted from src/ — rebuild and commit (the bundle IS the deployment)"; exit 1; }
+
+  smoke:
+    name: Smoke — the wiring no unit test can see (compose instance)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: aps-common sibling
+        run: git clone --depth 1 https://github.com/APS-Conecta/aps-common.git ../aps-common
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+      - run: npm ci
+      - name: The throwaway instance (Nextcloud 34 + PostgreSQL 18, compose.dev.yaml)
+        run: make instance-up
+      - name: Smoke (OCS headers, write path, refusals, icon, bundle parity, openapi regen)
+        run: make smoke
+      - name: Tear down
+        if: always()
+        run: make instance-clean

@@ -268,8 +268,8 @@ export default {
 				return data
 			} catch (exception) {
 				this[onError] = typeof fallback === 'function'
-					? fallback(exception)
-					: messageFrom(exception, fallback)
+					? await fallback(exception)
+					: await messageFrom(exception, fallback)
 				safeError(label, exception)
 				return null
 			}
@@ -450,9 +450,9 @@ export default {
 					// The 404 special case stays INSIDE the fallback argument (L2-15):
 					// a decision about which sentence wins, not about the shape — the
 					// server's bare 'no existe' never beats the sentence that names it.
-					fallback: (exception) => exception?.response?.status === 404
+					fallback: async (exception) => exception?.response?.status === 404
 						? 'El lote ya no existe.'
-						: messageFrom(exception, 'No se pudo abrir el lote. Revise la conexión e inténtelo de nuevo.'),
+						: await messageFrom(exception, 'No se pudo abrir el lote. Revise la conexión e inténtelo de nuevo.'),
 				})
 
 				if (data !== null) {
