@@ -37,6 +37,15 @@ test-integration integration:
 instance-up:
 	$(COMPOSE) up -d --wait
 	$(OCC) app:enable farmacia
+	# Restart AFTER enabling: Nextcloud's web workers cache the route collection
+	# and the enabled-app state in APCu (local, one hour), and `occ` runs in the
+	# CLI SAPI, which cannot invalidate it. The healthcheck's status.php already
+	# warmed the workers, so without this every farmacia route answers 404 / OCS
+	# 998 on a fresh instance while a day-old one is fine — CI's four smoke FAILs
+	# of 2026-09-27, reproduced on the dev box: disable, restart, warm, enable → 404;
+	# restart → 200. `up --wait` afterwards blocks on the healthcheck again.
+	$(COMPOSE) restart nextcloud
+	$(COMPOSE) up -d --wait
 	@echo "Instance ready at http://localhost:8090 (admin / admin)"
 
 # Run any occ command:  make instance-occ CMD="app:list"
