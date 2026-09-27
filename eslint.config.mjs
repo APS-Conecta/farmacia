@@ -25,6 +25,9 @@ export default [
 				// jsdom/node surfaces the suite runs on.
 				document: 'readonly',
 				URL: 'readonly',
+				// Blob: the shared error-shape reader (src/aps/api.js, canon from
+				// aps-common) unwraps a blob response body behind a typeof guard.
+				Blob: 'readonly',
 			},
 		},
 		rules: {
