@@ -51,10 +51,14 @@ failures=0
 pass() { printf '  ok    %s\n' "$1"; }
 fail() { printf '  FAIL  %s\n' "$1"; failures=$((failures + 1)); }
 # $1 haystack, $2 needle, $3 message on success, $4 message on failure
+# A failing check names what it actually got: CI's throwaway instance cannot be
+# poked afterwards, and four FAILs that only restate the expectation cost a
+# whole diagnosis round (2026-09-27). 200 bytes, one line — enough to see a
+# status code or the head of a body, never the whole envelope.
 expect() {
 	case "$1" in
 		*"$2"*) pass "$3" ;;
-		*) fail "$4" ;;
+		*) fail "$4 — got: $(printf '%s' "$1" | head -c 200 | tr '\n' ' ')" ;;
 	esac
 }
 
