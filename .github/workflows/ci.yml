@@ -23,8 +23,13 @@ jobs:
       # aps-common as a path sibling, exactly as a dev machine and territorio's CI resolve it
       - name: aps-common sibling
         run: git clone --depth 1 https://github.com/APS-Conecta/aps-common.git ../aps-common
-      - run: make test
+      # Drift BEFORE the tests: `make test` runs in a root container whose
+      # composer install COPIES aps-common into vendor/aps/common (path repo,
+      # symlink:false), so the files come back root-owned and the runner's
+      # `rm -rf` in aps-sync dies with "Permission denied" (2026-09-27, every
+      # main run since the step landed). On a dev box we are root and never saw it.
       - run: make aps-drift
+      - run: make test
 
   js:
     name: Frontend tests, lint and bundle
