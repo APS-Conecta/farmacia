@@ -97,7 +97,10 @@ expect "$(web -o /dev/null -w '%{http_code}' "$OCS?format=json")" '412' \
 	"without the OCS-APIRequest header the API does NOT answer 412"
 
 list="$(web -H "$OCSH" "$OCS?format=json")"
-expect "$list" '"ocs"' \
+# `"status":"ok"`, not `"ocs"`: an OCS FAILURE envelope (998 route-not-found)
+# also says "ocs" and carries "data":[] — this check and the next passed on
+# exactly the 404 they exist to catch (2026-09-27).
+expect "$list" '"status":"ok"' \
 	"the response comes wrapped in the OCS envelope" \
 	"the response does NOT carry the OCS envelope"
 # The shape, not the count: a fresh seed carries zero medications, and a
