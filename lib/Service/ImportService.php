@@ -245,14 +245,17 @@ class ImportService {
 
 		if (array_key_exists('abastece', $input) && is_array($input['abastece'])) {
 			$ids = [];
-			foreach ($input['abastece'] as $id) {
-				$id = (int)$id;
-				try {
-					$this->channels->find($id);
-				} catch (DoesNotExistException $e) {
-					throw new InvalidImportException(sprintf('El canal de abastece %d no existe.', $id), 0, $e);
+			foreach ($input['abastece'] as $rawId) {
+				$channelId = is_int($rawId) || (is_string($rawId) && ctype_digit($rawId)) ? (int)$rawId : null;
+				if ($channelId === null || $channelId < 1) {
+					throw new InvalidImportException('Cada canal de abastece es un número.');
 				}
-				$ids[] = $id;
+				try {
+					$this->channels->find($channelId);
+				} catch (DoesNotExistException $e) {
+					throw new InvalidImportException(sprintf('El canal de abastece %d no existe.', $channelId), 0, $e);
+				}
+				$ids[] = $channelId;
 			}
 			$payload['abasteceIds'] = array_values(array_unique($ids));
 			unset($payload['pending']['abastece']);

@@ -404,6 +404,20 @@ final class ImportServiceTest extends TestCase {
 		}
 	}
 
+	public function testDecideRefusesInvalidChannelIdType(): void {
+		$this->wire();
+		$row = $this->undecidedRow(['abastece' => ['SECO']]);
+		$this->rows->method('find')->willReturn($row);
+		$this->batches->method('find')->willReturn($this->stagedBatch());
+
+		try {
+			$this->service->decide((int)$row->getId(), ['abastece' => ['invalid']]);
+			self::fail('a non-numeric channel id must be refused');
+		} catch (InvalidImportException $e) {
+			self::assertSame('Cada canal de abastece es un número.', $e->getMessage());
+		}
+	}
+
 	public function testTheEmptyPlanillaIsRefused(): void {
 		$this->csv->method('read')->willReturn([]);
 
