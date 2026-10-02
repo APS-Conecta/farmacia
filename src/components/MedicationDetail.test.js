@@ -68,4 +68,24 @@ describe('MedicationDetail inside a keyed host (L2-16)', () => {
 		expect(detailOf(wrapper).vm.FDA_OPTIONS).toEqual(FDA_OPTIONS)
 		expect(FDA_OPTIONS).toEqual(['A', 'B', 'C', 'D', 'X'])
 	})
+
+	it('adds GES and restriction items on Enter key press', async () => {
+		const wrapper = mount(Host)
+		const detail = detailOf(wrapper)
+
+		const textFields = detail.findAllComponents({ name: 'NcTextField' })
+		const gesField = textFields.find((tf) => tf.props('label') === 'Agregar número GES')
+		await gesField.find('input').setValue('80')
+		await gesField.find('input').trigger('keydown.enter')
+
+		expect(wrapper.vm.draft.ges).toContain('80')
+		expect(detail.vm.newGes).toBe('')
+
+		const restrictionField = textFields.find((tf) => tf.props('label') === 'Agregar restricción')
+		await restrictionField.find('input').setValue('Solo receta retenida')
+		await restrictionField.find('input').trigger('keydown.enter')
+
+		expect(wrapper.vm.draft.restricciones).toContain('Solo receta retenida')
+		expect(detail.vm.newRestriction).toBe('')
+	})
 })

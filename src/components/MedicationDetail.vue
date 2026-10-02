@@ -107,7 +107,10 @@
 					</NcButton>
 				</div>
 				<div class="medication-detail__adder">
-					<NcTextField v-model="newGes" label="Agregar número GES" inputmode="numeric" />
+					<NcTextField v-model="newGes"
+						label="Agregar número GES"
+						inputmode="numeric"
+						@keydown.enter.prevent="addGes" />
 					<NcButton variant="tertiary" :disabled="newGes.trim() === ''" @click="addGes">
 						Agregar
 					</NcButton>
@@ -128,7 +131,9 @@
 					</NcButton>
 				</div>
 				<div class="medication-detail__adder">
-					<NcTextField v-model="newRestriction" label="Agregar restricción" />
+					<NcTextField v-model="newRestriction"
+						label="Agregar restricción"
+						@keydown.enter.prevent="addRestriction" />
 					<NcButton variant="tertiary" :disabled="newRestriction.trim() === ''" @click="addRestriction">
 						Agregar
 					</NcButton>

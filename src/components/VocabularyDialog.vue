@@ -69,6 +69,7 @@
 				<template v-else>
 					<button class="vocabulary-dialog__name"
 					:title="`Renombrar «${entry.label}»`"
+					:aria-label="`Renombrar «${entry.label}»`"
 					@click="startRename(entry)">
 						{{ entry.label }}
 					</button>
