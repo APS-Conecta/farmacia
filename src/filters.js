@@ -31,6 +31,10 @@ export function emptyFilter() {
  * hundreds of rows in memory; index when search actually feels slow.
  */
 export function matches(medication, query, categoryLabel) {
+	// Performance optimization: skip field array construction and text folding when query is empty.
+	if (!query || query.trim() === '') {
+		return true
+	}
 	return textMatches(query, [medication.producto, medication.farmaco, categoryLabel])
 }
 
@@ -62,6 +66,13 @@ export function lensPredicate(lens) {
  */
 export function filterMedications(medications, filter, categoriesById) {
 	const predicate = lensPredicate(filter.lens)
+	const hasQuery = Boolean(filter.query && filter.query.trim() !== '')
+
+	// Performance optimization: when search is empty, filter only by lens predicate
+	// to avoid per-item category Map lookups, field array allocations, and string folding.
+	if (!hasQuery) {
+		return medications.filter(predicate)
+	}
 
 	return medications.filter((m) => predicate(m)
 		&& matches(m, filter.query, categoriesById.get(m.categoryId)?.label))
