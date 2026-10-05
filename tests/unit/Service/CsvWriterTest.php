@@ -117,6 +117,16 @@ final class CsvWriterTest extends TestCase {
 				);
 			}
 		}
+
+		foreach ($triggers as $trigger) {
+			$csv = $this->writer->write([array_merge(self::ROW, ['restricciones' => [$trigger]])]);
+
+			self::assertStringContainsString(
+				"'" . $trigger,
+				$csv,
+				'the marker must be in the bytes for the multi-value cell restricciones',
+			);
+		}
 	}
 
 	public function testAnApostropheInitialCellIsWrittenExactlyAsStored(): void {
