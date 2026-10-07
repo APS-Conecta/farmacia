@@ -11,13 +11,18 @@
  * worrying who else might change it. None of it ever leaves the browser.
  */
 
-import { fold, textMatches, listFor as sharedListFor } from './aps/filters.js'
+import { fold, listFor as sharedListFor } from './aps/filters.js'
 
 export { fold }
 
 /** Nothing narrowed: the full arsenal, no search typed. */
 export function emptyFilter() {
 	return { lens: 'arsenal', query: '' }
+}
+
+/** Internal helper: match fields against a pre-folded needle. */
+function textMatchesFolded(needle, fields) {
+	return fields.some((field) => field != null && fold(field).includes(needle))
 }
 
 /**
@@ -31,7 +36,11 @@ export function emptyFilter() {
  * hundreds of rows in memory; index when search actually feels slow.
  */
 export function matches(medication, query, categoryLabel) {
-	return textMatches(query, [medication.producto, medication.farmaco, categoryLabel])
+	const needle = fold(query).trim()
+	if (needle === '') {
+		return true
+	}
+	return textMatchesFolded(needle, [medication.producto, medication.farmaco, categoryLabel])
 }
 
 /**
@@ -62,9 +71,14 @@ export function lensPredicate(lens) {
  */
 export function filterMedications(medications, filter, categoriesById) {
 	const predicate = lensPredicate(filter.lens)
+	const needle = fold(filter.query).trim()
+
+	if (needle === '') {
+		return medications.filter(predicate)
+	}
 
 	return medications.filter((m) => predicate(m)
-		&& matches(m, filter.query, categoriesById.get(m.categoryId)?.label))
+		&& textMatchesFolded(needle, [m.producto, m.farmaco, categoriesById.get(m.categoryId)?.label]))
 }
 
 /**
