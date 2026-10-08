@@ -1,38 +1,38 @@
-# Farmacia — glosario
+# Farmacia — glossary
 
 Cross-repo ADR citations are `repo#ADR-NNNN` (`territorio#ADR-0016`); in-repo citations stay bare. The org-wide contracts index lives in `gestion/docs/CONTRACTS.md`.
 
-Las palabras del dominio, fijadas para que el código diga lo mismo que el equipo.
-_Evitar_ marca el término que no debe aparecer.
+The domain's words, fixed so the code says what the team says. The terms are Spanish because the
+screens and the people who read them say them in Spanish; the code around them is English, and
+its ADRs cite the terms as written here. _Avoid_ marks a term that must not appear.
 
-**Arsenal farmacológico**: el catálogo completo de medicamentos que el CESFAM usa.
-_Evitar_: stock, inventario, bodega.
+**Arsenal farmacológico**: the complete catalogue of medications the CESFAM uses.
+_Avoid_: stock, inventario, bodega.
 
-**Medicamento**: una fila del arsenal: producto comercial + principio activo + presentación
-+ datos de cobertura y seguridad clínica.
+**Medicamento**: one row of the arsenal: commercial product + active ingredient + presentation
++ coverage and clinical-safety data.
 
-**Lente**: una vista inicial sobre el mismo dataset: Arsenal (todo), Fármacos en
-embarazo (FDA informada), Ajuste farmacológico ERC (ajuste renal informado). Una lente
-cambia el filtro inicial, nunca los datos. _Evitar_: pestaña, módulo, sección clínica.
+**Lente**: an initial view over the same dataset: Arsenal (everything), Fármacos en embarazo
+(FDA-informed), Ajuste farmacológico ERC (renal adjustment informed). A lens changes the initial
+filter, never the data. _Avoid_: pestaña (tab), módulo, sección clínica.
 
-**Categoría terapéutica**: vocabulario editable por instancia, sembrado con 16 valores
-al instalar. _Evitar_: familia, clase ATC (no es la clasificación ATC).
+**Categoría terapéutica**: a per-instance vocabulary, seeded with 16 values at install.
+_Avoid_: familia, clase ATC (it is not the ATC classification).
 
-**Canal de abastece**: vocabulario por instancia de dónde proviene cada medicamento
-(URGENCIAS, CECOSF…). Empieza vacío: cada CESFAM define los suyos. _Evitar_: proveedor,
-bodega.
+**Canal de abastece**: a per-instance vocabulary of where each medication comes from
+(URGENCIAS, CECOSF…). It starts empty: each CESFAM defines its own. _Avoid_: proveedor, bodega.
 
-**GES**: número de problema AUGE/GES que cubre el medicamento (0..n).
+**GES**: an AUGE/GES problem number the medication covers (0..n).
 
-**Restricción**: condición de uso escrita en texto libre (0..n).
+**Restricción**: a condition of use written in free text (0..n).
 
-**Trazador**: bandera que marca un medicamento de uso monitorio/epidemiológico.
+**Trazador**: a flag marking a medication of monitoring/epidemiological use.
 
-**Categoría FDA**: A, B, C, D o X en embarazo. Vacío = sin dato (no lo mismo que segura).
+**Categoría FDA**: A, B, C, D or X in pregnancy. Empty = no data (not the same as safe).
 
-**Retirar / restaurar**: baja y recuperación lógicas. Nada se borra. _Evitar_: eliminar.
+**Retirar / restaurar**: logical removal and recovery. Nothing is deleted. _Avoid_: eliminar.
 
-**Planilla**: el CSV que entra y sale de la app. La base de datos es la fuente de
-verdad; el CSV es una proyección.
+**Planilla**: the CSV that goes into and out of the app. The database is the source of truth;
+the CSV is a projection.
 
-**Lote**: una corrida de importación revisable y revertible, con autor y hora.
+**Lote**: a reviewable and revertible import run, with its author and time.

@@ -90,14 +90,41 @@ final class CsvWriterTest extends TestCase {
 		// marker must be asserted in the bytes, per trigger — the set
 		// CsvGrammar::unquote reverses, no more.
 		$triggers = ['=SUM(A1:A2)', '+56 9 1234 5678', '-1 día', '@deporte', "\tcon tab", "\rcon retorno"];
+		$textKeys = [
+			'codigo',
+			'producto',
+			'farmaco',
+			'mg',
+			'presentacion',
+			'categoriaLabel',
+			'programa',
+			'indicacion',
+			'dosificacion',
+			'precauciones',
+			'observaciones',
+			'fdaEmbarazo',
+			'ajusteRenal',
+		];
+
+		foreach ($textKeys as $key) {
+			foreach ($triggers as $trigger) {
+				$record = $this->recordOf(self::ROW, $key, $trigger);
+
+				self::assertStringContainsString(
+					"'" . $trigger,
+					$record,
+					sprintf('the marker must be in the bytes for field %s: the spreadsheet runs the file', $key),
+				);
+			}
+		}
 
 		foreach ($triggers as $trigger) {
-			$record = $this->recordOf(self::ROW, 'producto', $trigger);
+			$csv = $this->writer->write([array_merge(self::ROW, ['restricciones' => [$trigger]])]);
 
 			self::assertStringContainsString(
 				"'" . $trigger,
-				$record,
-				'the marker must be in the bytes: the spreadsheet runs the file, not the reader\'s tolerance',
+				$csv,
+				'the marker must be in the bytes for the multi-value cell restricciones',
 			);
 		}
 	}

@@ -10,7 +10,7 @@ work; the 🗡️ Breaker agent starts here.*
   (`abastece`), plus staged CSV imports. Tables: `farmacia_medication`, `farmacia_category`,
   `farmacia_abastece`, `farmacia_medication_abastece`, `farmacia_medication_ges`,
   `farmacia_medication_restriction`, `farmacia_import`, `farmacia_import_row` (`lib/Migration/`).
-- **No patient data and no stock.** The README says "No contiene datos de pacientes; no gestiona
+- **No patient data and no stock.** The README says "It holds no patient data and manages no
   stock" (`README.md:8`).
 
 ## What an attacker wants

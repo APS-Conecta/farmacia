@@ -70,4 +70,19 @@ describe('VocabularyDialog rename (L2-20)', () => {
 		expect(wrapper.emitted('rename')).toBeUndefined()
 		wrapper.unmount()
 	})
+
+	it('clears the adder text when the add lands — the fresh entries prop', async () => {
+		const wrapper = dialog()
+		wrapper.vm.newLabel = 'Nueva categoría'
+		await wrapper.vm.commitAdd()
+
+		expect(wrapper.vm.newLabel).toBe('Nueva categoría')
+		expect(wrapper.emitted('create')).toEqual([['Nueva categoría']])
+
+		await wrapper.setProps({ entries: [...ENTRIES, { id: 2, slug: 'nueva', label: 'Nueva categoría' }] })
+		await nextTick()
+
+		expect(wrapper.vm.newLabel).toBe('')
+		wrapper.unmount()
+	})
 })

@@ -166,6 +166,9 @@ export default {
 			if (this.editing !== null) {
 				this.editing = null
 			}
+			if (this.newLabel !== '') {
+				this.newLabel = ''
+			}
 		},
 	},
 

@@ -10,6 +10,11 @@ No contiene información de pacientes. No gestiona stock ni vencimientos.]]></de
     <licence>AGPL-3.0-or-later</licence>
     <author>Daniel Espinoza</author>
     <namespace>Farmacia</namespace>
+    <documentation>
+        <user>https://github.com/APS-Conecta/farmacia/blob/main/docs/manual.md</user>
+        <admin>https://github.com/APS-Conecta/farmacia/blob/main/docs/manual.md</admin>
+        <developer>https://github.com/APS-Conecta/farmacia/blob/main/README.md</developer>
+    </documentation>
     <category>tools</category>
     <dependencies>
         <php min-version="8.2" max-version="8.5"/>
