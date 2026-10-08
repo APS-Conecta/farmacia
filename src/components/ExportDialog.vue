@@ -18,7 +18,7 @@
 				revisión lo recibe fila por fila como cualquier planilla.
 			</p>
 			<p class="export-dialog__hint">
-				Los medicamentos retirados no van: el planilla es el arsenal que
+				Los medicamentos retirados no van: la planilla es el arsenal que
 				la app muestra.
 			</p>
 		</div>
