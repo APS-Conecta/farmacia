@@ -38,9 +38,6 @@ class VocabularyService {
 	/** farmacia_category.label and farmacia_abastece.label are VARCHAR(128). */
 	private const LABEL_LENGTH = 128;
 
-	/** Deleted — private const SLUG_LENGTH: sole referencing site was the
-	 *  slugFor body that now lives in Text. */
-
 	public function __construct(
 		private CategoryMapper $categories,
 		private ChannelMapper $channels,
