@@ -85,4 +85,13 @@ describe('VocabularyDialog rename (L2-20)', () => {
 		expect(wrapper.vm.newLabel).toBe('')
 		wrapper.unmount()
 	})
+
+	it('uses an accessible name starting with the visible label text (WCAG 2.5.3)', () => {
+		const wrapper = dialog()
+		const nameBtn = document.querySelector('.vocabulary-dialog__name')
+
+		expect(nameBtn).not.toBeNull()
+		expect(nameBtn.getAttribute('aria-label')).toBe('Renombrable — renombrar')
+		wrapper.unmount()
+	})
 })

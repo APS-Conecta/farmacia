@@ -34,13 +34,13 @@
 				</NcButton>
 				<NcButton class="farmacia-nav__action"
 					variant="tertiary"
-					aria-label="Gestionar categorías terapéuticas"
+					aria-label="Categorías — gestionar categorías terapéuticas"
 					@click="openVocabulary('categories')">
 					Categorías
 				</NcButton>
 				<NcButton class="farmacia-nav__action"
 					variant="tertiary"
-					aria-label="Gestionar canales de abastece"
+					aria-label="Abastece — gestionar canales de abastece"
 					@click="openVocabulary('abastece')">
 					Abastece
 				</NcButton>
