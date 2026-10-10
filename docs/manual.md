@@ -30,7 +30,8 @@ búsqueda; el arsenal sigue siendo uno solo. Si no recuerda qué lente dejó act
 «Arsenal Farmacológico» muestra todo.
 
 Sobre la lista, «Buscar» filtra por producto, fármaco (DCI) o categoría terapéutica, sin importar
-acentos ni mayúsculas. El botón «×» (o «Limpiar la búsqueda») la deja en blanco. El encabezado
+acentos ni mayúsculas. El botón «×» al final del campo la deja en blanco (un lector de pantalla lo
+anuncia como «Limpiar la búsqueda»). El encabezado
 muestra cuántos medicamentos ve («N medicamentos»). Si nada coincide, la lista dice «Nada coincide
 con «…»»: pruebe con menos palabras o limpie la búsqueda. Un arsenal recién instalado dice
 «Todavía no hay medicamentos»: importe la planilla (§5) o agregue el primero a mano (§3).
@@ -50,9 +51,10 @@ Presione un medicamento de la lista y se abre su ficha a la derecha, en cinco se
   (A, B, C, D o X — vacío = sin dato, no lo mismo que segura) y el «Ajuste renal (ERC)».
 - **Estado**: cuándo se guardó por última vez («Actualizado: …» o «Sin guardar todavía.»).
 
-«Guardar» escribe los cambios; «Guardando…» indica que van en camino. Un rechazo (por ejemplo, un
-código vacío) se muestra en rojo en la misma ficha, con la frase que dice por qué: corríjalo y
-vuelva a guardar. El botón «Agregar medicamento» del pie del menú abre una ficha en blanco
+«Guardar» escribe los cambios; «Guardando…» indica que van en camino. «Código» y «Producto» son
+obligatorios: si uno está vacío, el navegador no envía la ficha y señala el campo. Un rechazo de
+la aplicación (por ejemplo, una restricción que contiene «|») se muestra en rojo en la misma ficha,
+con la frase que dice por qué: corríjalo y vuelva a guardar. El botón «Agregar medicamento» del pie del menú abre una ficha en blanco
 («Nuevo medicamento») con las mismas secciones.
 
 ## 4. Retirar y restaurar
@@ -117,9 +119,11 @@ El pie del menú abre los dos vocabularios de la instancia:
   CECOSF…). Se administra igual («Nuevo canal», renombrar, «Quitar» con la misma regla de uso).
 
 Los nombres no pueden quedar vacíos, ni pasar de 128 caracteres, ni contener «|» (el separador
-de la planilla); dos palabras no pueden llamarse igual. Un rechazo se muestra dentro del mismo
-diálogo. Renombrar es seguro: la planilla exporta la palabra nueva, y una planilla vieja que
-traiga la antigua vuelve a pedir su decisión en la revisión, en vez de perderse.
+de la planilla). Al agregar una palabra, no puede llamarse igual que otra, sin contar acentos ni
+mayúsculas; renombrar no revisa esa regla. Un rechazo se muestra dentro del mismo diálogo.
+Renombrar cambia solo el nombre visible y la palabra conserva su identidad: una planilla vieja que
+traiga el nombre antiguo la sigue encontrando sin preguntar. La planilla que se exporte después
+lleva el nombre nuevo, y al importarla de nuevo ese nombre pide su decisión en la revisión (§5).
 
 ## 8. Para quien administra: importar sin navegador
 
@@ -145,10 +149,13 @@ distinta forma.
 
 - **«No se pudieron cargar los datos de la aplicación…»**: la página no pudo leer sus datos
   iniciales. Recargue la página; si persiste, avise a quien administra la instalación.
-- **«Todavía no hay medicamentos»**: el arsenal está vacío. Importe la planilla (§5) o agregue el
-  primer medicamento (§3).
-- **«No hay medicamentos retirados»**: nadie ha retirado nada todavía; es una pantalla de
-  recuperación y estará vacía hasta que alguien retire algo.
+- **«Todavía no hay medicamentos»**: la vista no muestra ningún medicamento y no hay búsqueda.
+  Ocurre con el arsenal vacío, y también con una lente cuyo criterio no cumple ningún medicamento
+  activo («Fármacos en embarazo» o «Ajuste farmacológico ERC»). Vuelva a «Arsenal Farmacológico»: si
+  sigue vacío, importe la planilla (§5) o agregue el primer medicamento (§3).
+- **«No hay medicamentos retirados»**: no hay ningún medicamento retirado, porque nunca se retiró
+  ninguno o porque se restauraron todos. Es una pantalla de recuperación: muestra lo que se retire
+  desde ese momento.
 - **«Nada coincide con «…»»**: la búsqueda no encontró el texto en producto, fármaco ni
   categoría. Pruebe con menos palabras o limpie la búsqueda.
 - **Un mensaje de error rojo** (en la ficha, en la importación o en un vocabulario): dice qué
