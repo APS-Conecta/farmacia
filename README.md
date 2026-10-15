@@ -31,9 +31,10 @@ The manual for staff, in Spanish and in the screens' own words, is [`docs/manual
 lenses, the medication form, retirar/restaurar, both vocabularies (16 therapeutic categories
 seeded at install; canales de abastece empty by design — each CESFAM defines its own), the
 two-phase planilla import with its review, the export, the `occ farmacia:import` door, and the
-OCS contract. `main` is 25 commits past the tag — the hardening pass, the org-template CI, the
-typed OCS payload, the threat model, the agent roster and this documentation rewrite — none of it
-released: `gestion` bumps the vendored tarball at a milestone rather than at every tag.
+OCS contract. `main` has moved on since the tag — among its commits the
+hardening pass, the org-template CI, the typed OCS payload, the threat model, the agent roster and
+this documentation rewrite — and none of it is released: `gestion` bumps the vendored tarball at a
+milestone rather than at every tag.
 
 Not done, deliberately: no admin section and no per-group delegation (any logged-in user can
 edit — the threat model records the decision and its open question), and no GitHub release pages
