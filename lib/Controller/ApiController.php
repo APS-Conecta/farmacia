@@ -18,7 +18,9 @@ use OCP\AppFramework\Http\Attribute\OpenAPI;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
+use OCP\ILogger;
 use OCP\IRequest;
+use OCP\IUserSession;
 
 /**
  * The vademécum over OCS — the contract a future suite app reads, and the
@@ -70,6 +72,8 @@ class ApiController extends OCSController {
 		IRequest $request,
 		private MedicationService $medications,
 		private VocabularyService $vocabulary,
+		private ?IUserSession $userSession = null,
+		private ?ILogger $logger = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -174,7 +178,9 @@ class ApiController extends OCSController {
 	#[ApiRoute(verb: 'POST', url: '/api/v1/medicamentos')]
 	public function create(): DataResponse {
 		try {
-			return new DataResponse($this->medications->create($this->request->getParams()), Http::STATUS_CREATED);
+			$res = $this->medications->create($this->request->getParams());
+			$this->logAuditEvent('API_CREATE_MEDICATION', $res['id'] ?? null, $res['codigo'] ?? null);
+			return new DataResponse($res, Http::STATUS_CREATED);
 		} catch (Refusal $e) {
 			return $this->refuse($e->getMessage());
 		}
@@ -197,7 +203,9 @@ class ApiController extends OCSController {
 	#[ApiRoute(verb: 'GET', url: '/api/v1/medicamentos/{id}', requirements: ['id' => '\d+'])]
 	public function show(int $id): DataResponse {
 		try {
-			return new DataResponse($this->medications->read($id));
+			$res = $this->medications->read($id);
+			$this->logAuditEvent('API_READ_MEDICATION', $id, $res['codigo'] ?? null);
+			return new DataResponse($res);
 		} catch (DoesNotExistException) {
 			return new DataResponse([], Http::STATUS_NOT_FOUND);
 		}
@@ -221,7 +229,9 @@ class ApiController extends OCSController {
 	#[ApiRoute(verb: 'PUT', url: '/api/v1/medicamentos/{id}', requirements: ['id' => '\d+'])]
 	public function update(int $id): DataResponse {
 		try {
-			return new DataResponse($this->medications->update($id, $this->request->getParams()));
+			$res = $this->medications->update($id, $this->request->getParams());
+			$this->logAuditEvent('API_UPDATE_MEDICATION', $id, $res['codigo'] ?? null);
+			return new DataResponse($res);
 		} catch (Refusal $e) {
 			return $this->refuse($e->getMessage());
 		} catch (DoesNotExistException) {
@@ -300,5 +310,19 @@ class ApiController extends OCSController {
 		// doors' one mapping; this half stays a DataResponse because the OCS
 		// envelope is not a JSONResponse.
 		return new DataResponse(['message' => $message], Http::STATUS_UNPROCESSABLE_ENTITY);
+	}
+
+	private function logAuditEvent(string $action, ?int $entityId, ?string $codigo): void {
+		$actor = $this->userSession?->getUser()?->getUID() ?? 'system';
+		$ip = $this->request->getRemoteAddress() ?? '127.0.0.1';
+		$this->logger?->info(sprintf(
+			'HIPAA_AUDIT: %s by actor=%s on medication_id=%s codigo=%s from ip=%s at %s',
+			$action,
+			$actor,
+			$entityId !== null ? (string)$entityId : 'unknown',
+			$codigo ?? 'none',
+			$ip,
+			(new \DateTime('now', new \DateTimeZone('UTC')))->format(\DateTimeInterface::ATOM)
+		), ['app' => Application::APP_ID, 'audit' => true]);
 	}
 }

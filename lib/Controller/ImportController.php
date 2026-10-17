@@ -14,6 +14,7 @@ use OCA\Farmacia\Service\ImportService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
+use OCP\ILogger;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -44,6 +45,7 @@ class ImportController extends Controller {
 		private ImportService $import,
 		private ApplyService $apply,
 		private IUserSession $userSession,
+		private ?ILogger $logger = null,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -114,7 +116,11 @@ class ImportController extends Controller {
 	 */
 	#[NoAdminRequired]
 	public function apply(int $id): JSONResponse {
-		return $this->attempt(fn (): array => $this->apply->apply($id));
+		return $this->attempt(function () use ($id): array {
+			$res = $this->apply->apply($id);
+			$this->logAuditEvent('APPLY_IMPORT_BATCH', $id);
+			return $res;
+		});
 	}
 
 	/**
@@ -134,9 +140,26 @@ class ImportController extends Controller {
 	 */
 	#[NoAdminRequired]
 	public function revert(int $id): JSONResponse {
-		return $this->attempt(fn (): array => $this->apply->revert(
-			$id,
-			$this->userSession->getUser()?->getUID(),
-		));
+		return $this->attempt(function () use ($id): array {
+			$res = $this->apply->revert(
+				$id,
+				$this->userSession->getUser()?->getUID(),
+			);
+			$this->logAuditEvent('REVERT_IMPORT_BATCH', $id);
+			return $res;
+		});
+	}
+
+	private function logAuditEvent(string $action, int $batchId): void {
+		$actor = $this->userSession->getUser()?->getUID() ?? 'system';
+		$ip = $this->request->getRemoteAddress() ?? '127.0.0.1';
+		$this->logger?->info(sprintf(
+			'HIPAA_AUDIT: %s by actor=%s on batch_id=%d from ip=%s at %s',
+			$action,
+			$actor,
+			$batchId,
+			$ip,
+			(new \DateTime('now', new \DateTimeZone('UTC')))->format(\DateTimeInterface::ATOM)
+		), ['app' => Application::APP_ID, 'audit' => true]);
 	}
 }
