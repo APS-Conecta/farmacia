@@ -1,156 +1,81 @@
 # Farmacia
 
-## What this is
+Aplicación de Nextcloud 34 para APS Conecta Gestión: el vademécum de medicamentos del CESFAM, con su cobertura (GES, canales de abastece) y su información de seguridad clínica (categoría FDA en embarazo, ajuste renal, riesgo colinérgico en adulto mayor).
 
-Nextcloud 34 app for APS Conecta Gestión: the CESFAM's medication vademécum — every medication the
-center prescribes and dispenses, with its coverage (GES, canales de abastece) and its clinical-safety
-information (categoría FDA en embarazo, ajuste renal, riesgo colinérgico en adulto mayor).
-**It holds no patient data and manages no stock.** The arsenal is a reference of what the CESFAM
-uses, not an inventory of what is on the shelf: nothing in it expires and nothing is counted
-([ADR-0004](docs/adr/0004-the-arsenal-is-a-vademecum-not-a-stock.md)). UI in Spanish, everything
-else English ([`AGENTS.md`](AGENTS.md)). AGPL-3.0-or-later.
+## Qué es
 
-Every logged-in user can read **and edit** the arsenal. The safety net is not permissions: it is
-reversible retirement and the staged, row-by-row review every import goes through — a recorded
-decision, with its reasons, in [`docs/threat-model.md`](docs/threat-model.md).
+El arsenal farmacológico del centro: cada medicamento que el CESFAM receta y despacha. **No guarda datos de pacientes y no gestiona stock.** El arsenal es una referencia de lo que el CESFAM usa, no un inventario de lo que hay en bodega: nada vence y nada se cuenta ([ADR-0004](docs/adr/0004-the-arsenal-is-a-vademecum-not-a-stock.md)). La interfaz está en español; todo lo demás, en inglés ([`AGENTS.md`](AGENTS.md)).
 
-| View | What it is | Where it comes from |
+Toda persona con sesión iniciada puede consultar **y editar** el arsenal. La red de seguridad no son los permisos, sino el retiro reversible y la revisión fila por fila de toda importación: una decisión registrada, con sus razones, en [`docs/threat-model.md`](docs/threat-model.md).
+
+| Vista | Qué es | De dónde viene |
 | --- | --- | --- |
-| **Arsenal Farmacológico** | Every live medication, searched by producto, fármaco (DCI) or categoría | This app's own tables |
-| **Fármacos en embarazo** | The same arsenal, opened at the FDA-informed rows | The lens rule: FDA category set ([ADR-0002](docs/adr/0002-a-lens-changes-the-initial-filter-not-the-dataset.md)) |
-| **Ajuste farmacológico ERC** | The same arsenal, opened at the renal-adjusted rows | The lens rule: ajuste renal set |
-| «Ver retirados» | The recovery screen: retired records, restorable in place | The `retired` flag ([ADR-0003](docs/adr/0003-retirar-and-restaurar-are-logical-nothing-is-deleted.md)) |
-| «Importar planilla» | The two-phase CSV import: staged review, decide, apply, revert | `farmacia_import` / `farmacia_import_row` ([ADR-0001](docs/adr/0001-the-planilla-is-a-projection-not-the-data.md)) |
-| «Exportar planilla» | The whole live arsenal as one CSV, reimportable | The same grammar, the other direction |
+| **Arsenal Farmacológico** | Todos los medicamentos activos, con búsqueda por producto, fármaco (DCI) o categoría | Las tablas propias de la aplicación |
+| **Fármacos en embarazo** | El mismo arsenal, abierto en las filas con categoría FDA | La regla de lente: conjunto de categorías FDA ([ADR-0002](docs/adr/0002-a-lens-changes-the-initial-filter-not-the-dataset.md)) |
+| **Ajuste farmacológico ERC** | El mismo arsenal, abierto en las filas con ajuste renal | La regla de lente: conjunto de ajuste renal |
+| «Ver retirados» | La pantalla de recuperación: registros retirados, restaurables en el lugar | La marca `retired` ([ADR-0003](docs/adr/0003-retirar-and-restaurar-are-logical-nothing-is-deleted.md)) |
+| «Importar planilla» | La importación CSV en dos fases: revisión por etapas, decisión, aplicación y reversión | `farmacia_import` / `farmacia_import_row` ([ADR-0001](docs/adr/0001-the-planilla-is-a-projection-not-the-data.md)) |
+| «Exportar planilla» | Todo el arsenal vivo como un CSV, reimportable | La misma gramática, en el sentido contrario |
 
-The manual for staff, in Spanish and in the screens' own words, is [`docs/manual.md`](docs/manual.md).
+Para otras aplicaciones, Farmacia publica una API OCS bajo `/ocs/v2.php/apps/farmacia/api/v1/medicamentos` (consulta de todo el arsenal, consulta de un medicamento, alta y actualización). El encabezado `OCS-APIRequest: true` **no es opcional**: Nextcloud responde `412` sin él. Los límites son 120 lecturas y 20 escrituras por minuto y por usuario. **Las rutas de escritura cambian el medicamento directamente, sin paso de revisión**: [`docs/threat-model.md`](docs/threat-model.md) registra por qué se acepta. El contrato es [`openapi.json`](openapi.json), generado por `make openapi` desde el controlador y nunca a mano; la [lista de contratos de gestion](https://github.com/APS-Conecta/gestion/blob/main/docs/CONTRACTS.md) lo enumera.
 
-## Status
+Una clínica obtiene Farmacia a través de gestion, no de la tienda de aplicaciones: el aprovisionamiento de gestion desempaqueta el tarball que fija en `provisioning/apps/farmacia/` con su archivo `VENDOR`, y la instalación no necesita red para la aplicación ([ADR-0003 de gestion](https://github.com/APS-Conecta/gestion/blob/main/docs/adr/0003-this-stack-ships-a-custom-app.md)). Requiere Nextcloud 34 y PHP 8.2 a 8.5 (`appinfo/info.xml`); el entorno de desarrollo usa PostgreSQL 18.
 
-**0.11.1, tagged 2026-09-18.** Everything above is built and shipped: the arsenal and its three
-lenses, the medication form, retirar/restaurar, both vocabularies (16 therapeutic categories
-seeded at install; canales de abastece empty by design — each CESFAM defines its own), the
-two-phase planilla import with its review, the export, the `occ farmacia:import` door, and the
-OCS contract. `main` is 25 commits past the tag — the hardening pass, the org-template CI, the
-typed OCS payload, the threat model, the agent roster and this documentation rewrite — none of it
-released: `gestion` bumps the vendored tarball at a milestone rather than at every tag.
+**No hay nada que configurar.** La aplicación no lee configuración alguna: ni `IConfig` en `lib/`, ni claves de aplicación, ni sección de administración, ni nada en `config.php`. Los datos propios de la instancia son sus dos vocabularios («Categorías» y «Abastece»), que se editan en la propia aplicación. La única puerta fuera del navegador es el comando occ ([referencia de occ](https://docs.nextcloud.com/server/34/admin_manual/occ.html)):
 
-Not done, deliberately: no admin section and no per-group delegation (any logged-in user can
-edit — the threat model records the decision and its open question), and no GitHub release pages
-for the tags, for the same reason estadistica has none.
+    occ farmacia:import <archivo.csv> --actor=<name> [--apply]
 
-## Quickstart
+## Documentación
 
-On a machine with Docker, beside a checkout of [`aps-common`](https://github.com/APS-Conecta/aps-common)
-(`../aps-common`). This stands up a throwaway Nextcloud 34 with PostgreSQL 18 on port 8090; it is
-not the gestion stack.
+El manual de uso, el diseño, el contrato OCS y las novedades viven en el sitio de documentación:
 
-1. **Start the instance** (in this repo): `make instance-up`. It enables the app — which runs the
-   migration and the seed's install repair step — restarts the web workers (see *Development*),
-   and ends with `Instance ready at http://localhost:8090 (admin / admin)`.
-2. **Check the wiring**: `make smoke`. It proves the OCS route answers 412 without the
-   `OCS-APIRequest` header and 200 with it, that a write goes through with no CSRF token, the
-   400/404 refusals, the icon, the `.htaccess` holes, the committed bundle, and that
-   `openapi.json` regenerates without drift. It ends with `All good.`
-3. **Open `http://localhost:8090/apps/farmacia`** as `admin` / `admin`. The list says «Todavía no
-   hay medicamentos», which is right: import a planilla («Importar planilla») or add the first
-   medication by hand («Agregar medicamento»).
+- [Guía de uso de Farmacia](https://aps-conecta.github.io/documentation/usuario/farmacia.html): consultar el arsenal, retirar y restaurar, importar y exportar la planilla, mantener los vocabularios y la importación por occ.
+- [Farmacia: diseño y contratos](https://aps-conecta.github.io/documentation/desarrollo/farmacia.html): la vía única de escritura, la API OCS, los estados de la importación, los errores, los invariantes y la deuda técnica.
+- [Novedades de Farmacia](https://aps-conecta.github.io/documentation/proyecto/novedades/farmacia.html): los cambios visibles, por versión.
 
-`make instance-clean` removes the instance and its database.
+Dentro de este repositorio quedan solo los documentos que viajan con el código:
 
-## How it works
+- [`CONTEXT.md`](CONTEXT.md): el vocabulario del dominio (arsenal farmacológico, lente, planilla, lote, retirar y restaurar), en inglés.
+- [`docs/adr/`](docs/adr/): las decisiones y su razonamiento (0001 a 0004).
+- [`docs/threat-model.md`](docs/threat-model.md): qué busca un atacante, las puertas de entrada y sus guardas.
+- [`openapi.json`](openapi.json): el contrato OCS, generado.
+- [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md): los componentes de terceros del paquete y sus licencias.
+- [`CHANGELOG.md`](CHANGELOG.md): qué cambió y cuándo.
 
-- **One write path.** Every door — the sidebar's «Guardar», the OCS API, an applied batch — goes
-  through `MedicationService`, so no two doors can disagree about what a record is.
-- **The planilla is a projection** ([ADR-0001](docs/adr/0001-the-planilla-is-a-projection-not-the-data.md)).
-  The database is the source of truth; the export is the whole live arsenal through one
-  definition, and an import stages every row for review before anything lands.
-- **Nothing is deleted** ([ADR-0003](docs/adr/0003-retirar-and-restaurar-are-logical-nothing-is-deleted.md)).
-  Retiring is a flag; restoring is one button; an import never revives a retired record.
-- **The staged review.** Staging reads and judges each row (`create`, `update`, `sin cambios`,
-  `omitido`, `duplicado`, `con problemas`) without writing; a row whose words the vocabulary does
-  not know waits for a decision instead of silently matching; apply lands the batch in one
-  transaction — a failure rolls back to the review the person approved; revert walks the rows
-  back and refuses to discard a record someone edited after the apply.
-- **Words fold, ids never travel.** The planilla carries labels that fold to slugs
-  (aps-common's `Text`); the OCS contract carries ids. A word renamed after a planilla was
-  written resurfaces as a review decision, not a silent match.
-- **Uploads are capped at 8 MiB**; formula-cell prefixes are defused on export and restored on
-  import, so the CSV opens in Excel without executing anything.
+## Estado
 
-## For other apps
+**0.11.1, etiquetada el 2026-09-18.** Todo lo descrito está construido y entregado: el arsenal y sus tres lentes, la ficha del medicamento, retirar y restaurar, ambos vocabularios (16 categorías terapéuticas sembradas al instalar; canales de abastece vacíos a propósito, porque cada CESFAM define los suyos), la importación de planilla en dos fases con su revisión, la exportación, la puerta `occ farmacia:import` y el contrato OCS. `main` lleva 25 commits sobre la etiqueta (el endurecimiento, el CI de la plantilla de la organización, el payload OCS tipado, el modelo de amenazas, el elenco de agentes y la reescritura de la documentación) sin publicar: gestion actualiza el tarball que fija en un hito, no en cada etiqueta.
 
-OCS, with `OCS-APIRequest: true` — **not optional**, Nextcloud answers `412` without it — under
-`/ocs/v2.php/apps/farmacia/api/v1/medicamentos`: `GET` the arsenal (narrowed server-side by
-`?search=`, `?categoria=<slug>`, `?gestacion=A–X`, `?renal_ajuste=1`), `GET` one medication,
-`POST` a new one, `PUT` an update. Rate limits: 120 reads and 20 writes a minute per user — the
-bulk path is the planilla import, which has its own staged review, and a script hammering writes
-has missed the door built for it.
+No está hecho, a propósito: no hay sección de administración ni delegación por grupo (cualquier persona con sesión puede editar; el modelo de amenazas registra la decisión y su pregunta abierta), y las etiquetas no tienen páginas de publicación en GitHub, por la misma razón que estadistica no las tiene.
 
-**The write routes change medications directly, with no review step** — the most direct path to
-clinical-safety data there is; [`docs/threat-model.md`](docs/threat-model.md) records why that
-is accepted. A key a medication does not have is absent, never null. What cannot be understood
-is refused (400/404), never answered with a confidently empty list.
+## Inicio rápido de desarrollo
 
-The contract is [`openapi.json`](openapi.json), generated by `make openapi` from the controller,
-never by hand; gestion's [`docs/CONTRACTS.md`](https://github.com/APS-Conecta/gestion/blob/main/docs/CONTRACTS.md)
-lists it.
+En una máquina con Docker, junto a una copia de [`aps-common`](https://github.com/APS-Conecta/aps-common) (`../aps-common`). Esto levanta un Nextcloud 34 desechable con PostgreSQL 18 en el puerto 8090; no es el stack de gestion.
 
-## Development
+1. **Levantar la instancia** (en este repositorio): `make instance-up`. Habilita la aplicación (lo que corre la migración y el paso de reparación de la semilla), reinicia los procesos web y termina con `Instance ready at http://localhost:8090 (admin / admin)`.
+2. **Verificar el cableado**: `make smoke`. Comprueba que la ruta OCS responde 412 sin el encabezado `OCS-APIRequest` y 200 con él, que una escritura entra sin token CSRF, los rechazos 400 y 404, el ícono, los huecos de `.htaccess`, el bundle confirmado y que `openapi.json` se regenera sin deriva. Termina con `All good.`
+3. **Abrir `http://localhost:8090/apps/farmacia`** como `admin` / `admin`. La lista dice «Todavía no hay medicamentos», que es lo correcto: importar una planilla («Importar planilla») o agregar el primer medicamento a mano («Agregar medicamento»).
 
-- `make test`: the PHPUnit unit suite in a bare PHP container, no Nextcloud.
-- `npm test` and `npm run lint-js`: Vitest and ESLint over `src/`.
-- `make instance-up && make smoke`: the wiring against the throwaway instance (the quickstart's
-  steps 1–2).
-- The integration suite runs inside that instance against its real PostgreSQL — the Makefile's
-  `integration` target (needs `make deps` and `make instance-up` first; no CI job runs it).
-- `make aps-drift`: the vendored `aps-common` copies are current (`make aps-sync` refreshes
-  them).
-- `npm run build`, then commit `js/`: the bundle is committed, and CI fails when it differs from
-  `src/`.
+`make instance-clean` elimina la instancia y su base de datos.
 
-CI (`.github/workflows/ci.yml`) runs the aps-common drift check, lint, the unit suites, the
-bundle check, `make test`, and `make smoke` on a cold instance. One trap already paid for:
-**restart the web workers after `occ app:enable`** — they cache the routes and the app state in
-APCu for an hour, and every route answers 404 until they restart; `make instance-up` does it for
-you.
-
-## Installation
-
-A clinic gets Farmacia through gestion, not from the app store: gestion's provisioning unpacks
-the tarball it vendors under `provisioning/apps/farmacia/`, pinned by its `VENDOR` file, and an
-install needs no network for the app itself — the org-wide decision is
-[gestion ADR-0003](https://github.com/APS-Conecta/gestion/blob/main/docs/adr/0003-this-stack-ships-a-custom-app.md).
-Nextcloud 34, PHP 8.2–8.5 (`appinfo/info.xml`); the dev harness runs PostgreSQL 18.
-
-To develop, clone this repo into the gestion checkout and let provisioning enable it (both
-commands run from the gestion checkout):
+Para desarrollar dentro de la suite de gestion, clonar este repositorio en el clon de gestion y dejar que el aprovisionamiento lo habilite (ambos comandos se ejecutan desde el clon de gestion):
 
     git clone https://github.com/APS-Conecta/farmacia.git apps/farmacia
     make fix-mount-perms && make seed
 
-With the directory present, provisioning leaves the live clone alone instead of unpacking the
-tarball over it.
+Con el directorio presente, el aprovisionamiento deja intacto el clon vivo en lugar de desempaquetar el tarball encima.
 
-## Configuration
+- `make test`: la suite unitaria de PHPUnit en un contenedor PHP básico, sin Nextcloud.
+- `npm test` y `npm run lint-js`: Vitest y ESLint sobre `src/`.
+- `make instance-up && make smoke`: el cableado contra la instancia desechable (los pasos 1 y 2 de arriba).
+- La suite de integración corre dentro de esa instancia contra su PostgreSQL real, con el objetivo `integration` del Makefile (necesita antes `make deps` y `make instance-up`; ningún job de CI la ejecuta).
+- `make aps-drift`: las copias vendorizadas de `aps-common` están al día (`make aps-sync` las refresca).
+- `npm run build` y luego confirmar `js/`: el bundle se confirma, y el CI falla cuando difiere de `src/`.
 
-**Nothing to configure.** The app reads no configuration at all — no `IConfig` anywhere in
-`lib/`, no app-config keys, no admin section, nothing in `config.php`. The instance's own data
-is its two vocabularies («Categorías», «Abastece»), edited in the app itself; and access is not
-a setting either: every logged-in user can read and edit, a recorded decision
-([`docs/threat-model.md`](docs/threat-model.md)) whose safety nets are retirement and the staged
-import review. The one door outside the browser is the occ command
-([the occ reference](https://docs.nextcloud.com/server/34/admin_manual/occ.html)):
+El CI (`.github/workflows/ci.yml`) ejecuta la comprobación de deriva de aps-common, el lint, las suites unitarias, la comprobación del bundle, `make test` y `make smoke` sobre una instancia en frío. Una trampa ya pagada: **reiniciar los procesos web después de `occ app:enable`**. Guardan las rutas y el estado de la aplicación en APCu durante una hora, y toda ruta responde 404 hasta que se reinician; `make instance-up` lo hace solo.
 
-    occ farmacia:import <archivo.csv> --actor=<name> [--apply]
+## Licencia
 
-## Licence
+AGPL-3.0-or-later; véase [`LICENSE`](LICENSE). No es una elección libre: los bundles de `js/` compilan `@nextcloud/vue` (AGPL-3.0-or-later) y paquetes de Nextcloud bajo GPL-3.0-or-later, de modo que el copyleft se hereda de lo que enlaza; el [ADR-0010 de gestion](https://github.com/APS-Conecta/gestion/blob/main/docs/adr/0010-agpl-across-the-org.md) registra la decisión para toda la organización. Como la sección 13 de la AGPL cubre el uso por red, al personal que usa la aplicación por la intranet se le debe su código fuente si lo solicita.
 
-AGPL-3.0-or-later — see [`LICENSE`](LICENSE). Not a free choice: the bundles under `js/` compile
-`@nextcloud/vue` (AGPL-3.0-or-later) and Nextcloud packages under GPL-3.0-or-later, so the
-copyleft is inherited from what it links —
-[gestion ADR-0010](https://github.com/APS-Conecta/gestion/blob/main/docs/adr/0010-agpl-across-the-org.md)
-records the organisation-wide decision. Because AGPL §13 covers network use, staff who use this
-app over the intranet are owed its source on request.
-
-Third-party components and their notices: [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+Los avisos y licencias de la organización viven en [Aviso y licencias](https://aps-conecta.github.io/documentation/aviso.html); los componentes de terceros de este paquete y sus avisos, en [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).

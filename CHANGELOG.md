@@ -21,6 +21,12 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The README is in Spanish on the five-section contract (`Qué es`, `Documentación`, `Estado`,
+  `Inicio rápido de desarrollo`, `Licencia`), and the repository opts into the Spanish-docs
+  regime (`.github/docs-es`, ADR 0006 of repo-docs); the vendored checker and profiles are
+  refreshed.
+- The `<documentation>` links in `appinfo/info.xml` point at the documentation site instead of
+  the retired `docs/manual.md`.
 - **Documentation rewrite**: English README on the suite's section contract and English
   `CONTEXT.md` (Spanish headwords kept), the authority-table `docs/index.md`, and
   `<documentation>` links in `appinfo/info.xml`.
@@ -32,6 +38,12 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - `instance-up` restarts the web workers after `app:enable` — their APCu route and app-state
   cache outlives `occ`.
 - The citation convention (`repo#ADR-NNNN`) lands in `CONTEXT.md`.
+
+### Removed
+
+- `docs/manual.md`: the staff manual now lives in the documentation site (`usuario/farmacia`),
+  where the occ import and the load-failure message were added.
+- `docs/index.md`: the authority table; navigation is the README's `Documentación` section.
 
 ### Fixed
 
