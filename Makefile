@@ -80,8 +80,7 @@ aps-sync:
 # vendor/aps/common/src and src/aps are committed, so they can drift from the
 # package the way js/ can drift from src/. `git status --porcelain` (not
 # diff --exit-code) so a rename that deletes one file and adds another is
-# seen — the same lesson territorio's js/ CI arm records. farmacia has no CI
-# tree yet — this target IS the gate until the canon phase gives it one.
+# seen — the same lesson territorio's js/ CI arm records. ci.yml runs this target.
 aps-drift: aps-sync
 	@drift="$$(git status --porcelain -- vendor/aps/common/src src/aps tests/stubs/OC/Hooks/Emitter.php)"; \
 	if [ -n "$$drift" ]; then \
