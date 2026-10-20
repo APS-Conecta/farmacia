@@ -9,14 +9,11 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- `docs/manual.md`: the Spanish staff manual — every screen walked in its own words, lenses,
-  ficha, retirar/restaurar, the planilla round trip, the vocabularies, the occ import.
 - `docs/adr/0001`–`0004`: the planilla-is-a-projection, lens-is-an-initial-filter,
   retirar/restaurar-is-logical and vademécum-not-stock decisions, recorded.
 - `THIRD-PARTY-NOTICES.md`: the licences of everything the committed bundle ships.
 - `docs/threat-model.md`: what an attacker wants from the vademécum, the entry points and their
   guards; records the open-edit decision and names the direct OCS write path.
-- The weekly agent roster and its rules in `AGENTS.md`.
 - CI clones the private `aps-common` with a read-only deploy key.
 
 ### Changed
@@ -25,11 +22,9 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
   `Inicio rápido de desarrollo`, `Licencia`), and the repository opts into the Spanish-docs
   regime (`.github/docs-es`, ADR 0006 of repo-docs); the vendored checker and profiles are
   refreshed.
-- The `<documentation>` links in `appinfo/info.xml` point at the documentation site instead of
-  the retired `docs/manual.md`.
-- **Documentation rewrite**: English README on the suite's section contract and English
-  `CONTEXT.md` (Spanish headwords kept), the authority-table `docs/index.md`, and
-  `<documentation>` links in `appinfo/info.xml`.
+- The `<documentation>` links in `appinfo/info.xml` point at the documentation site.
+- **Documentation rewrite**: English README on the suite's section contract, English
+  `CONTEXT.md` (Spanish headwords kept), and `<documentation>` links in `appinfo/info.xml`.
 - `aps-common` is the CSV core's one home; the vocabulary slugs go through its `Text`.
 - The OCS payload is typed as the 21 keys the route serves.
 - The hardening pass: one refusal trait, typed doors, caps single-sourced, safe console, keyed
@@ -38,12 +33,6 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - `instance-up` restarts the web workers after `app:enable` — their APCu route and app-state
   cache outlives `occ`.
 - The citation convention (`repo#ADR-NNNN`) lands in `CONTEXT.md`.
-
-### Removed
-
-- `docs/manual.md`: the staff manual now lives in the documentation site (`usuario/farmacia`),
-  where the occ import and the load-failure message were added.
-- `docs/index.md`: the authority table; navigation is the README's `Documentación` section.
 
 ### Fixed
 
@@ -54,6 +43,5 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - The smoke envelope check requires status `ok`, not the word `ocs`; a failing check names what
   it actually got.
 - The lock file catches up with `package.json` (stale since the 0.11.1 release).
-- The domain vocabulary example in `docs/index.md` matches `CONTEXT.md`.
 - The vocabulary dialog clears its adder field once the new entry lands.
 - The export dialog's hint says «la planilla», not «el planilla».
