@@ -9,17 +9,19 @@ The CESFAM's medication vademécum, a Nextcloud app: the formulary with its clin
   touches, and never a table, column, route, controller action (an OpenAPI operation id) or API field.
   `Medication*` (classes and tables) is this repo's established code spelling of *Medicamento*: keep it.
 - **Threat model:** read `docs/threat-model.md` before any security work.
-- **Gate before opening a PR** — what `ci.yml` and `docs.yml` run. This repo uses **npm**, not pnpm:
+- **Gate before opening a PR** — what `ci.yml` and `release.yml` run. This repo uses **npm**, not pnpm:
   `git clone --depth 1 https://github.com/APS-Conecta/aps-common.git ../aps-common` if it is missing — aps-common is
   private, so if the clone fails, skip the steps that need it and list them as not run; never edit a workflow to work around it;
-  `make aps-drift`; `npm ci`; `npm run lint-js`; `npm test`; `npm run build`, then `git diff --exit-code js/`; then
+  `make aps-drift`; `npm ci`; `npm run lint-js`; `npm test`; `npm run build`, then assert `js/farmacia-main.js` and its
+  `.LICENSE.txt` exist (never committed — the release packs them); then
   `make test` — after `npm test`, since it copies a node:test file into `vendor/` that `npm test` would then fail on;
-  `make instance-up && make smoke`, then `make instance-clean`;
-  `python3 .github/repo-docs.py check . --offline`. A step you could not run is named in the PR, never reported as passed.
-- **`src/` changed → `npm run build`** and commit the regenerated `js/farmacia-main.js` and its `.LICENSE.txt` in the same PR.
+  `make instance-up && make smoke`, then `make instance-clean`.
+  A step you could not run is named in the PR, never reported as passed.
+- **`src/` changed → `npm run build`**: `js/` is build output, ignored — nothing to commit. The release
+  workflow builds the bundle before packing, and CI fails a PR whose build produces no bundle.
   Never commit `*.js.map` or `node_modules/`.
-- **Never edit** `.github/repo-docs.py`, `.github/profiles/*`, `package-lock.json`, `composer.lock`, the dependency lists
-  in `package.json`/`composer.json`, `js/` by hand, `openapi.json` (generated from `ApiController` by `scripts/openapi.sh`;
+- **Never edit** `package-lock.json`, `composer.lock`, the dependency lists
+  in `package.json`/`composer.json`, `openapi.json` (generated from `ApiController` by `scripts/openapi.sh`;
   `make smoke` fails on drift), or the aps-common copies `src/aps/`, `vendor/aps/common/src/`, `tests/stubs/OC/Hooks/Emitter.php`.
 - **Strings:** what a person reads — templates, exception messages shown to the user — is Spanish, written as literals the
   way the surrounding code does; this app uses no `t()` / `$l->t()`, so do not introduce them. Code, comments, commits and PR text English.

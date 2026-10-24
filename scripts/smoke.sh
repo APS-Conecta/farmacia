@@ -15,8 +15,8 @@
 #     verdict made for farmacia's first OCS writes
 #   - the contract refuses what it cannot understand (400 gestación, 404
 #     categoría) rather than answering 200-empty
-#   - the icon serves, the .htaccess holes stay shut, the bundle matches
-#     src/, and openapi.json regenerates without drift
+#   - the icon serves, the .htaccess holes stay shut, the bundle builds, and
+#     openapi.json regenerates without drift
 #
 # Output of every command is captured before it is matched, never piped into
 # `grep -q` (epi's SIGPIPE lesson), and every curl carries --max-time — nothing
@@ -176,21 +176,20 @@ for path in package.json openapi.json src/payload.js scripts/smoke.sh; do
 done
 
 # --- the bundle is the deployment --------------------------------------------
-# js/ is committed — the bundle IS the deployment, so the failure this guards
-# is src/ moving without a rebuild. CI runs this same assertion and does NOT
-# skip (#39): the skip triggers exactly where the check is most needed — a
-# fresh clone with no node_modules. This copy stays for the local answer.
+# js/ is built, not committed (the release packs it), so the failure this guards
+# is a build that produces no bundle at all — the same refusal pack-app makes, and
+# CI's js job runs the same assertion. CI runs this same check and does NOT skip
+# (#39): the skip triggers exactly where the check is most needed — a fresh clone
+# with no node_modules. This copy stays for the local answer.
 if command -v npm >/dev/null 2>&1 && [ -d node_modules ]; then
 	npm run build --silent >/dev/null 2>&1
-	drift="$(git status --porcelain js/ 2>/dev/null)"
-	if [ -z "$drift" ]; then
-		pass "the js/ bundle matches src/"
+	if [ -s "js/$APP-main.js" ] && [ -s "js/$APP-main.js.LICENSE.txt" ]; then
+		pass "the build produces the js/ bundle"
 	else
-		fail "js/ is behind src/ — run 'npm run build' and commit the result"
-		printf '%s\n' "$drift" | sed 's/^/        /'
+		fail "npm run build produced no js/$APP-main.js — the release packer would refuse this tree"
 	fi
 else
-	printf '  --    no node_modules: not checking whether the bundle is current\n'
+	printf '  --    no node_modules: not checking whether the bundle builds\n'
 fi
 
 # --- the contract is generated, not hand-edited ------------------------------

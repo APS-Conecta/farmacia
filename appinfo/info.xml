@@ -6,7 +6,7 @@
     <description><![CDATA[El vademécum de medicamentos que el CESFAM receta y despacha: principios activos, presentaciones, cobertura (GES, abastece), y seguridad clínica (categoría FDA en embarazo, ajuste renal, riesgo colinérgico en adulto mayor). Consultable por todo el personal, editable por todo el equipo.
 
 No contiene información de pacientes. No gestiona stock ni vencimientos.]]></description>
-    <version>0.11.1</version>
+    <version>0.12.0</version>
     <licence>AGPL-3.0-or-later</licence>
     <author>Daniel Espinoza</author>
     <namespace>Farmacia</namespace>
