@@ -5,16 +5,16 @@ This software is licensed under the GNU Affero General Public License v3.0 or la
 which are licensed by their own authors under their own terms. This file exists to
 satisfy the attribution those licences require.
 
-**Derived from `js/farmacia-main.js.LICENSE.txt`**, which the build emits beside the bundle and
-which is committed with it, so the notices travel with the copy as AGPL §4 requires. That file is
-the authority: it carries an SPDX identifier and a copyright line per block the webpack licence
-plugin recorded. This one is its summary — with one addition it cannot make itself: the plugin
-groups the Nextcloud packages under undated blocks that name no package, so the six runtime
-dependencies `package.json` declares are hand-recorded here, by licence.
+**Derived from `js/farmacia-main.js.LICENSE.txt`**, which the build emits beside the bundle (js/ is
+built, not committed — the release packs it), so this summary is the copy that travels with the
+tarball as AGPL §4 requires. That file is the authority: it carries an SPDX identifier and a
+copyright line per block the webpack licence plugin recorded. This one is its summary — with one
+addition it cannot make itself: the plugin groups the Nextcloud packages under undated blocks
+that name no package, so the six runtime dependencies `package.json` declares are hand-recorded
+here, by licence.
 
 Regenerating is reading it again: run `npm run build`, then reconcile this table with
-`js/farmacia-main.js.LICENSE.txt`. `python3 .github/repo-docs.py licences .` reads the
-*manifests* instead, so it is a cross-check, never the source.
+`js/farmacia-main.js.LICENSE.txt`.
 
 ## Bundled JavaScript dependencies
 

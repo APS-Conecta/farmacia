@@ -53,7 +53,7 @@ No está hecho, a propósito: no hay sección de administración ni delegación 
 En una máquina con Docker, junto a una copia de [`aps-common`](https://github.com/APS-Conecta/aps-common) (`../aps-common`). Esto levanta un Nextcloud 34 desechable con PostgreSQL 18 en el puerto 8090; no es el stack de gestion.
 
 1. **Levantar la instancia** (en este repositorio): `make instance-up`. Habilita la aplicación (lo que corre la migración y el paso de reparación de la semilla), reinicia los procesos web y termina con `Instance ready at http://localhost:8090 (admin / admin)`.
-2. **Verificar el cableado**: `make smoke`. Comprueba que la ruta OCS responde 412 sin el encabezado `OCS-APIRequest` y 200 con él, que una escritura entra sin token CSRF, los rechazos 400 y 404, el ícono, los huecos de `.htaccess`, el bundle confirmado y que `openapi.json` se regenera sin deriva. Termina con `All good.`
+2. **Verificar el cableado**: `make smoke`. Comprueba que la ruta OCS responde 412 sin el encabezado `OCS-APIRequest` y 200 con él, que una escritura entra sin token CSRF, los rechazos 400 y 404, el ícono, los huecos de `.htaccess`, que la compilación produce el bundle y que `openapi.json` se regenera sin deriva. Termina con `All good.`
 3. **Abrir `http://localhost:8090/apps/farmacia`** como `admin` / `admin`. La lista dice «Todavía no hay medicamentos», que es lo correcto: importar una planilla («Importar planilla») o agregar el primer medicamento a mano («Agregar medicamento»).
 
 `make instance-clean` elimina la instancia y su base de datos.
@@ -70,9 +70,9 @@ Con el directorio presente, el aprovisionamiento deja intacto el clon vivo en lu
 - `make instance-up && make smoke`: el cableado contra la instancia desechable (los pasos 1 y 2 de arriba).
 - La suite de integración corre dentro de esa instancia contra su PostgreSQL real, con el objetivo `integration` del Makefile (necesita antes `make deps` y `make instance-up`; ningún job de CI la ejecuta).
 - `make aps-drift`: las copias vendorizadas de `aps-common` están al día (`make aps-sync` las refresca).
-- `npm run build` y luego confirmar `js/`: el bundle se confirma, y el CI falla cuando difiere de `src/`.
+- `npm run build`: genera `js/farmacia-main.js` (el bundle no se confirma; el flujo de release lo compila y CI falla si la compilación no produce bundle).
 
-El CI (`.github/workflows/ci.yml`) ejecuta la comprobación de deriva de aps-common, el lint, las suites unitarias, la comprobación del bundle, `make test` y `make smoke` sobre una instancia en frío. Una trampa ya pagada: **reiniciar los procesos web después de `occ app:enable`**. Guardan las rutas y el estado de la aplicación en APCu durante una hora, y toda ruta responde 404 hasta que se reinician; `make instance-up` lo hace solo.
+El CI (`.github/workflows/ci.yml`) ejecuta la comprobación de deriva de aps-common, el lint, las suites unitarias, la comprobación del bundle, `make test` y `make smoke` sobre una instancia en frío; el flujo de release (`.github/workflows/release.yml`) compila y empaqueta en cada PR. Una trampa ya pagada: **reiniciar los procesos web después de `occ app:enable`**. Guardan las rutas y el estado de la aplicación en APCu durante una hora, y toda ruta responde 404 hasta que se reinician; `make instance-up` lo hace solo.
 
 ## Licencia
 

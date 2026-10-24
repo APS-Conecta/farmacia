@@ -18,6 +18,29 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **First signed release (0.12.0).** Releases are built and signed by the org's shared
+  workflow (instalador #31), called from `.github/workflows/release.yml` pinned by commit
+  SHA: a pull request builds the frontend and packs the tarball; a `v*` tag — which must
+  equal `v` + the `appinfo/info.xml` version — signs `SHA256SUMS` with the app key inside
+  the repo's `release` environment and publishes exactly four assets (`farmacia.tar.gz`,
+  `info.xml`, `SHA256SUMS`, `SHA256SUMS.minisig`), proven against the suite's `apps.pub`.
+  The tarball's contents come from `.nextcloudignore`, added with this change: the
+  development tree (`src/`, `tests/`, `docs/`, `scripts/`, the agent files, the configs)
+  stays out; `appinfo/`, `lib/`, `templates/`, `img/`, the built `js/`, the vendored
+  `vendor/aps/common/src`, the licences and the notices travel.
+
+  **`js/` is build output now, not a committed artifact.** The two tracked bundle files
+  (including the terser `.LICENSE.txt` notice) leave git and `js/` is ignored: the
+  release builds the bundle before packing, and `pack-app` refuses a committed one. CI's
+  rebuild-no-drift arm goes with them — CI now fails a PR whose build produces no bundle,
+  the same refusal the packer makes — and installing from a clone needs
+  `npm ci && npm run build` first (README says so).
+
+  **The vendored docs checker and canon are gone** (instalador #32, S2a): the checker, its
+  profiles, the `docs-es` marker and the documentation workflow under `.github/`, the
+  issue forms, the pull-request template and the code-owners file — the org defaults in
+  `APS-Conecta/.github` serve the community files now. No `guard.yml`: the repo is
+  public, so secret scanning and push protection are GitHub's, not a workflow's.
 - The README is in Spanish on the five-section contract (`Qué es`, `Documentación`, `Estado`,
   `Inicio rápido de desarrollo`, `Licencia`), and the repository opts into the Spanish-docs
   regime (`.github/docs-es`, ADR 0006 of repo-docs); the vendored checker and profiles are
