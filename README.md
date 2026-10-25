@@ -17,9 +17,9 @@ Toda persona con sesión iniciada puede consultar **y editar** el arsenal. La re
 | «Importar planilla» | La importación CSV en dos fases: revisión por etapas, decisión, aplicación y reversión | `farmacia_import` / `farmacia_import_row` ([ADR-0001](docs/adr/0001-the-planilla-is-a-projection-not-the-data.md)) |
 | «Exportar planilla» | Todo el arsenal vivo como un CSV, reimportable | La misma gramática, en el sentido contrario |
 
-Para otras aplicaciones, Farmacia publica una API OCS bajo `/ocs/v2.php/apps/farmacia/api/v1/medicamentos` (consulta de todo el arsenal, consulta de un medicamento, alta y actualización). El encabezado `OCS-APIRequest: true` **no es opcional**: Nextcloud responde `412` sin él. Los límites son 120 lecturas y 20 escrituras por minuto y por usuario. **Las rutas de escritura cambian el medicamento directamente, sin paso de revisión**: [`docs/threat-model.md`](docs/threat-model.md) registra por qué se acepta. El contrato es [`openapi.json`](openapi.json), generado por `make openapi` desde el controlador y nunca a mano; la [lista de contratos de gestion](https://github.com/APS-Conecta/gestion/blob/main/docs/CONTRACTS.md) lo enumera.
+Para otras aplicaciones, Farmacia publica una API OCS bajo `/ocs/v2.php/apps/farmacia/api/v1/medicamentos` (consulta de todo el arsenal, consulta de un medicamento, alta y actualización). El encabezado `OCS-APIRequest: true` **no es opcional**: Nextcloud responde `412` sin él. Los límites son 120 lecturas y 20 escrituras por minuto y por usuario. **Las rutas de escritura cambian el medicamento directamente, sin paso de revisión**: [`docs/threat-model.md`](docs/threat-model.md) registra por qué se acepta. El contrato es [`openapi.json`](openapi.json), generado por `make openapi` desde el controlador y nunca a mano; el [sitio de documentación](https://aps-conecta.github.io/documentation/desarrollo/apis/plataforma-y-rest-interno.html) indexa los contratos de las aplicaciones.
 
-Una clínica obtiene Farmacia a través de gestion, no de la tienda de aplicaciones: el aprovisionamiento de gestion desempaqueta el tarball que fija en `provisioning/apps/farmacia/` con su archivo `VENDOR`, y la instalación no necesita red para la aplicación ([ADR-0003 de gestion](https://github.com/APS-Conecta/gestion/blob/main/docs/adr/0003-this-stack-ships-a-custom-app.md)). Requiere Nextcloud 34 y PHP 8.2 a 8.5 (`appinfo/info.xml`); el entorno de desarrollo usa PostgreSQL 18.
+Una clínica obtiene Farmacia del asistente de la suite —aplicación opcional, desactivada por omisión—, no de la tienda de aplicaciones: la suite descarga la release firmada más nueva compatible con su Nextcloud, verifica su firma contra la llave de las aplicaciones y solo entonces la instala ([ADR-0017 de la suite](https://github.com/APS-Conecta/instalador/blob/main/docs/adr/0017-apps-install-from-their-own-releases.md)). Requiere Nextcloud 34 y PHP 8.2 a 8.5 (`appinfo/info.xml`); el entorno de desarrollo usa PostgreSQL 18.
 
 **No hay nada que configurar.** La aplicación no lee configuración alguna: ni `IConfig` en `lib/`, ni claves de aplicación, ni sección de administración, ni nada en `config.php`. Los datos propios de la instancia son sus dos vocabularios («Categorías» y «Abastece»), que se editan en la propia aplicación. La única puerta fuera del navegador es el comando occ ([referencia de occ](https://docs.nextcloud.com/server/34/admin_manual/occ.html)):
 
@@ -58,12 +58,7 @@ En una máquina con Docker, junto a una copia de [`aps-common`](https://github.c
 
 `make instance-clean` elimina la instancia y su base de datos.
 
-Para desarrollar dentro de la suite de gestion, clonar este repositorio en el clon de gestion y dejar que el aprovisionamiento lo habilite (ambos comandos se ejecutan desde el clon de gestion):
-
-    git clone https://github.com/APS-Conecta/farmacia.git apps/farmacia
-    make fix-mount-perms && make seed
-
-Con el directorio presente, el aprovisionamiento deja intacto el clon vivo en lugar de desempaquetar el tarball encima.
+Para desarrollar, este repositorio trae su propia instancia de prueba (`compose.dev.yaml`, `Dockerfile.test`): `make instance-up` la levanta y `make fix-mount-perms` repara un montaje que quedó de solo lectura. La suite instala la aplicación desde su release firmada; el clon es solo para desarrollar.
 
 - `make test`: la suite unitaria de PHPUnit en un contenedor PHP básico, sin Nextcloud.
 - `npm test` y `npm run lint-js`: Vitest y ESLint sobre `src/`.
@@ -76,6 +71,6 @@ El CI (`.github/workflows/ci.yml`) ejecuta la comprobación de deriva de aps-com
 
 ## Licencia
 
-AGPL-3.0-or-later; véase [`LICENSE`](LICENSE). No es una elección libre: los bundles de `js/` compilan `@nextcloud/vue` (AGPL-3.0-or-later) y paquetes de Nextcloud bajo GPL-3.0-or-later, de modo que el copyleft se hereda de lo que enlaza; el [ADR-0010 de gestion](https://github.com/APS-Conecta/gestion/blob/main/docs/adr/0010-agpl-across-the-org.md) registra la decisión para toda la organización. Como la sección 13 de la AGPL cubre el uso por red, al personal que usa la aplicación por la intranet se le debe su código fuente si lo solicita.
+AGPL-3.0-or-later; véase [`LICENSE`](LICENSE). No es una elección libre: los bundles de `js/` compilan `@nextcloud/vue` (AGPL-3.0-or-later) y paquetes de Nextcloud bajo GPL-3.0-or-later, de modo que el copyleft se hereda de lo que enlaza; el [ADR-0006 de la suite](https://github.com/APS-Conecta/instalador/blob/main/docs/adr/0006-agpl-across-the-org.md) registra la decisión para toda la organización. Como la sección 13 de la AGPL cubre el uso por red, al personal que usa la aplicación por la intranet se le debe su código fuente si lo solicita.
 
 Los avisos y licencias de la organización viven en [Aviso y licencias](https://aps-conecta.github.io/documentation/aviso.html); los componentes de terceros de este paquete y sus avisos, en [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).

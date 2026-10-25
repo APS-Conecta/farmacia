@@ -51,7 +51,7 @@ class Version000100Date20260917000000 extends SimpleMigrationStep {
 
 		// The ABASTECE vocabulary: identical shape to the categories, and
 		// deliberately never seeded — which channels exist is instance
-		// configuration (gestion#ADR-0013), so each clinic defines its own.
+		// configuration (instalador#ADR-0009), so each clinic defines its own.
 		if (!$schema->hasTable('farmacia_abastece')) {
 			$table = $schema->createTable('farmacia_abastece');
 			$table->addColumn('id', Types::BIGINT, ['autoincrement' => true, 'notnull' => true]);

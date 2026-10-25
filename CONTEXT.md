@@ -1,6 +1,6 @@
 # Farmacia — glossary
 
-Cross-repo ADR citations are `repo#ADR-NNNN` (`territorio#ADR-0016`); in-repo citations stay bare. The org-wide contracts index lives in `gestion/docs/CONTRACTS.md`.
+Cross-repo ADR citations are `repo#ADR-NNNN` (`territorio#ADR-0016`); in-repo citations stay bare. The org-wide decisions live as ADRs in the suite repository (`APS-Conecta/instalador`, `docs/adr/`); cross-app contracts are each app's OpenAPI surface, indexed on the documentation site.
 
 The domain's words, fixed so the code says what the team says. The terms are Spanish because the
 screens and the people who read them say them in Spanish; the code around them is English, and

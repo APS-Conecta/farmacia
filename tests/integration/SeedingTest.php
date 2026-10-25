@@ -37,7 +37,7 @@ final class SeedingTest extends IntegrationTestCase {
 		self::assertCount(16, array_unique($slugs), 'the unique index would refuse it, but the seed itself must never try');
 	}
 
-	/** gestion#ADR-0013: which channels exist is the clinic's to say. */
+	/** instalador#ADR-0009: which channels exist is the clinic's to say. */
 	public function testTheAbasteceVocabularyStartsEmpty(): void {
 		self::assertSame([], Server::get(ChannelMapper::class)->findAll());
 	}
