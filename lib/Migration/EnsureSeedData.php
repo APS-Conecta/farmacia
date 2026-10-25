@@ -25,7 +25,7 @@ use OCP\Migration\IRepairStep;
  * restored: the vocabulary is the clinic's data the moment it is seeded.
  *
  * Nothing seeds farmacia_abastece. Which supply channels a CESFAM stocks
- * through is instance configuration (gestion#ADR-0013): URGENCIAS and CECOSF are
+ * through is instance configuration (instalador#ADR-0009): URGENCIAS and CECOSF are
  * real places in some communes and meaningless in others, so the table starts
  * empty and each clinic types its own — or imports one, which lands in the
  * review step as a decision, never as a silent new row.

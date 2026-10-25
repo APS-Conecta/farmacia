@@ -40,7 +40,7 @@ it needs no notice of its own.
 Nextcloud packages under GPL-3.0-or-later are likewise linked into it. This is why this app is
 AGPL-3.0-or-later and could not be licensed otherwise: the obligation is inherited from what it
 links, not chosen — the org-wide record is
-[gestion ADR-0010](https://github.com/APS-Conecta/gestion/blob/main/docs/adr/0010-agpl-across-the-org.md).
+[ADR-0006 de la suite](https://github.com/APS-Conecta/instalador/blob/main/docs/adr/0006-agpl-across-the-org.md).
 
 `js/farmacia-main.js.LICENSE.txt` carries an SPDX identifier and a copyright line per component,
 **not the licence texts**: MIT asks for the text itself, so what ships is short of that. The
