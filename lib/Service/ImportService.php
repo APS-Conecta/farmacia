@@ -56,6 +56,9 @@ class ImportService {
 	/** The FDA pregnancy categories, as MedicationService states them. */
 	private const FDA_CATEGORIES = ['A', 'B', 'C', 'D', 'X'];
 
+	/** The width of farmacia_import.actor, as Version000100Date20260917000000 sets it. */
+	private const ACTOR_MAX = 64;
+
 	public function __construct(
 		private CsvReader $csv,
 		private CategoryMapper $categories,
@@ -77,9 +80,13 @@ class ImportService {
 	 * and a reopened batch through one document.
 	 *
 	 * @return array{batch: array<string, mixed>, rows: list<array<string, mixed>>}
-	 * @throws InvalidImportException when the file itself cannot be read
+	 * @throws InvalidImportException when the actor is longer than the lote records, or the file itself cannot be read
 	 */
 	public function stage(string $contents, string $filename, ?string $actor): array {
+		if ($actor !== null && mb_strlen($actor) > self::ACTOR_MAX) {
+			throw new InvalidImportException(sprintf('El actor no puede pasar de %d caracteres.', self::ACTOR_MAX));
+		}
+
 		$read = $this->csv->read($contents);
 		if ($read === []) {
 			throw new InvalidImportException('El archivo no tiene filas debajo del encabezado.');
