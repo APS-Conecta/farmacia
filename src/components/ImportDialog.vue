@@ -269,8 +269,9 @@ export default {
 			return this.review === null ? [] : pendingRows(this.review.rows)
 		},
 
+		/** The owed rows while the switch is on and a row is owed; every row otherwise. */
 		shownRows() {
-			return this.onlyPending ? this.pending : this.review?.rows ?? []
+			return this.onlyPending && this.pending.length > 0 ? this.pending : this.review?.rows ?? []
 		},
 
 		/** The row under the editor, or null. */
@@ -322,6 +323,14 @@ export default {
 		 */
 		decisionReady() {
 			return ready(this.decisionRow, this.decisions[this.deciding], Boolean(this.owed?.categoria))
+		},
+	},
+
+	watch: {
+		// Per-review state: App replacing or clearing the review turns the switch
+		// off; decideRow patching a row into the same document does not (never deep).
+		review() {
+			this.onlyPending = false
 		},
 	},
 

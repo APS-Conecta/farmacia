@@ -18,9 +18,9 @@ use OCP\AppFramework\Http\Attribute\OpenAPI;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
-use OCP\ILogger;
 use OCP\IRequest;
 use OCP\IUserSession;
+use Psr\Log\LoggerInterface;
 
 /**
  * The vademécum over OCS — the contract a future suite app reads, and the
@@ -72,8 +72,8 @@ class ApiController extends OCSController {
 		IRequest $request,
 		private MedicationService $medications,
 		private VocabularyService $vocabulary,
-		private ?IUserSession $userSession = null,
-		private ?ILogger $logger = null,
+		private IUserSession $userSession,
+		private LoggerInterface $logger,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -166,7 +166,13 @@ class ApiController extends OCSController {
 	 * categoryId, the optional texts, and the three child lists — ges,
 	 * restricciones, abastece (channel ids) — sent as request parameters
 	 * (form-encoded or query string, the OCS-classic encodings; repeated
-	 * `ges[]=…` keys carry the lists).
+	 * `ges[]=…` keys carry the lists; a bare `ges=` sends the empty list,
+	 * which on an update clears it, and any other single value is refused
+	 * with 422).
+	 *
+	 * `trazador` and `riesgoColinergicoAm` read `true`, `1` or `sí` as yes and
+	 * `false`, `0`, `no` or empty as no (case, accents and surrounding spaces
+	 * aside); any other value is refused with 422.
 	 *
 	 * @return DataResponse<Http::STATUS_CREATED|Http::STATUS_UNPROCESSABLE_ENTITY, array<string, mixed>, array{}>
 	 *
@@ -313,9 +319,9 @@ class ApiController extends OCSController {
 	}
 
 	private function logAuditEvent(string $action, ?int $entityId, ?string $codigo): void {
-		$actor = $this->userSession?->getUser()?->getUID() ?? 'system';
+		$actor = $this->userSession->getUser()?->getUID() ?? 'system';
 		$ip = $this->request->getRemoteAddress() ?? '127.0.0.1';
-		$this->logger?->info(sprintf(
+		$this->logger->warning(sprintf(
 			'HIPAA_AUDIT: %s by actor=%s on medication_id=%s codigo=%s from ip=%s at %s',
 			$action,
 			$actor,
