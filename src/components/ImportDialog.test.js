@@ -143,6 +143,7 @@ describe('ImportDialog picked file', () => {
 		const second = planilla(2)
 		await choose(first)
 		await wrapper.setProps({ error: 'El archivo no tiene filas debajo del encabezado.' })
+		expect(fileHint()).toBe('planilla.csv · 1 KB')
 		findButton('Revisar').click()
 		await choose(second)
 		findButton('Revisar').click()
