@@ -8,6 +8,7 @@ namespace OCA\Farmacia\Tests\Integration;
 
 use OCA\Farmacia\Db\Channel;
 use OCA\Farmacia\Db\ChannelMapper;
+use OCA\Farmacia\Exception\InvalidImportException;
 use OCA\Farmacia\Service\ImportService;
 use OCA\Farmacia\Service\MedicationService;
 use OCP\Server;
@@ -119,6 +120,26 @@ final class ImportStagingTest extends IntegrationTestCase {
 		self::assertSame(1, $doc['batch']['skipped']);
 		self::assertSame(1, $doc['batch']['duplicates']);
 		self::assertSame(1, $doc['batch']['unsupported']);
+	}
+
+	public function testAnOverLongCodigoStagesInvalidAndTheOtherRowsStillStage(): void {
+		$doc = $this->stage("Código;Producto;Categoría\n"
+			. str_repeat('X', 200) . ";Producto nuevo;Otros\n"
+			. "IM-101;Producto nuevo;Otros\n"
+			. "IM-102;Producto nuevo;Otros\n", 'larga.csv');
+
+		self::assertSame([2, 1], [$doc['batch']['created'], $doc['batch']['unsupported']]);
+		$byLine = array_column($this->import->review((int)$doc['batch']['id'])['rows'], null, 'lineNumber');
+		self::assertSame(128, mb_strlen($byLine[2]['codigo']), 'the staging column holds the cut código');
+		self::assertSame(str_repeat('X', 200), $byLine[2]['payload']['codigo'], 'the full cell stays in the payload');
+		self::assertStringContainsString('pasa de 128 caracteres', (string)$byLine[2]['notes']);
+		foreach ([3 => 'IM-101', 4 => 'IM-102'] as $line => $codigo) {
+			self::assertSame([$codigo, 'create', 'staged'], [$byLine[$line]['codigo'], $byLine[$line]['disposition'], $byLine[$line]['status']]);
+		}
+
+		$this->expectException(InvalidImportException::class);
+		$this->expectExceptionMessage('La fila no espera una decisión.');
+		$this->import->decide((int)$byLine[2]['id'], ['categoryId' => $this->categoryIdBySlug('otros')]);
 	}
 
 	public function testReviewReopensTheDocumentAndBatchesListsIt(): void {
