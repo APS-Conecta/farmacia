@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import ImportDialog from './ImportDialog.vue'
+import { BATCH_STATE_LABELS, revertCounters } from '../import.js'
 
 /** One staged row as the review serves it, owing what `pending` says. */
 function row(id, pending) {
@@ -88,6 +89,43 @@ describe('ImportDialog decisionReady (L2-18)', () => {
 		const button = await openEditor(wrapper, theRow)
 
 		expect(button.disabled).toBe(false)
+		wrapper.unmount()
+	})
+})
+
+describe('ImportDialog recent batches', () => {
+	it('says what an undo did on its row, and leaves the other rows as they were', async () => {
+		const revert = {
+			id: 13,
+			originalFilename: 'arsenal.csv',
+			startedAt: '2026-10-26 10:05',
+			state: 'applied',
+			isRevert: true,
+			revertsId: 12,
+			undone: false,
+			updated: 37,
+			skipped: 3,
+		}
+		const applied = {
+			id: 12,
+			originalFilename: 'arsenal.csv',
+			startedAt: '2026-10-26 10:00',
+			state: 'applied',
+			isRevert: false,
+			undone: true,
+			updated: 40,
+			skipped: 0,
+		}
+		const wrapper = mount(ImportDialog, {
+			props: { batches: [revert, applied], review: null, categories: [], abastece: [] },
+			attachTo: document.body,
+		})
+		await nextTick()
+
+		const [revertRow, appliedRow] = document.querySelectorAll('.import-dialog__batch')
+		expect(appliedRow.querySelector('.import-dialog__hint').textContent.replace(/\s+/g, ' ').trim())
+			.toBe(`${applied.originalFilename} · ${applied.startedAt} · ${BATCH_STATE_LABELS.applied}`)
+		expect(revertRow.textContent).toContain(revertCounters(revert))
 		wrapper.unmount()
 	})
 })
