@@ -408,6 +408,45 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame([], $updated['payload']['pending']);
 	}
 
+	/** @return array<string, array{string}> the dispositions a row judged against a stored record carries */
+	public static function judgedAgainstAStoredRecord(): array {
+		return ['update' => ['update'], 'unchanged' => ['unchanged']];
+	}
+
+	/** @dataProvider judgedAgainstAStoredRecord */
+	public function testDecideKeepsARowJudgedAgainstAVanishedRecordAnUpdate(string $prior): void {
+		$this->wire();
+		// The stored código was edited after the upload: it no longer resolves.
+		$this->medications->method('findByCodigo')->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('no'));
+		$row = $this->undecidedRow(['categoria' => 'Cardiovasculres']);
+		$row->setDisposition($prior);
+		$this->rows->method('find')->willReturn($row);
+		$this->batches->method('find')->willReturn($this->stagedBatch());
+		$this->categories->method('find')->willReturn(self::category(2, 'salud_mental_incluye_tto_oh', 'Salud mental (incluye tto OH)'));
+
+		$updated = $this->service->decide((int)$row->getId(), ['categoryId' => 2]);
+
+		self::assertSame('update', $updated['disposition'], 'a create would land a second medication under the old código');
+	}
+
+	public function testDecideReDerivesACreateRowAgainstAHandMadeRecord(): void {
+		$this->wire();
+		// Someone created F-009 by hand after the upload: the row now meets it.
+		$stored = new Medication();
+		$stored->setCodigo('F-009');
+		$stored->setProducto('Otro nombre');
+		$stored->setRetired(false);
+		$this->medications->method('findByCodigo')->willReturn($stored);
+		$row = $this->undecidedRow(['categoria' => null]);
+		$this->rows->method('find')->willReturn($row);
+		$this->batches->method('find')->willReturn($this->stagedBatch());
+		$this->categories->method('find')->willReturn(self::category(2, 'salud_mental_incluye_tto_oh', 'Salud mental (incluye tto OH)'));
+
+		$updated = $this->service->decide((int)$row->getId(), ['categoryId' => 2]);
+
+		self::assertSame('update', $updated['disposition']);
+	}
+
 	public function testDecideCanLeaveAChannelUnassigned(): void {
 		$this->wire();
 		$this->medications->method('findByCodigo')->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('no'));

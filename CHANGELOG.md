@@ -73,3 +73,5 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - The export dialog's hint says «la planilla», not «el planilla».
 - A GES number above 2147483647 is refused with a sentence (Guardar, OCS, planilla staging)
   instead of a 500.
+- A review decision on a row whose stored código changed no longer creates a duplicate medication;
+  the apply refuses the row.

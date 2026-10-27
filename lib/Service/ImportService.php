@@ -290,15 +290,14 @@ class ImportService {
 					'abastece' => $this->abastece->findAllFor((int)$medication->getId()),
 				];
 			} catch (DoesNotExistException) {
-					// A código that stopped resolving between stage and decision reads
-					// as create here — the apply's own resolve() is the door that
-					// refuses a world that moved, and re-deriving a disposition is not
-					// that door.
-				}
+				// A código that stops resolving leaves $stored null: a row judged
+				// against a stored record stays an update below, so the apply's
+				// resolve() refuses it instead of creating a second medication.
+			}
 		}
 
 		if ($stored === null) {
-			$disposition = 'create';
+			$disposition = $row->getDisposition() === 'create' ? 'create' : 'update';
 		} elseif ($stored['retired']) {
 			$disposition = 'skipped';
 		} else {
