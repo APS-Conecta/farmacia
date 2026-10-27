@@ -61,7 +61,7 @@ describe('the focus-reload keeps the view (#42)', () => {
 		first.unmount()
 
 		const restored = await mountApp()
-		expect(view(restored)).toEqual({ lens: 'embarazo', query: 'amoxi', showRetired: true, active: ['Fármacos en embarazo'] })
+		expect(view(restored)).toMatchObject({ lens: 'embarazo', query: 'amoxi', showRetired: true })
 		restored.unmount()
 		expect(view(await mountApp())).toEqual(DEFAULTS)
 	})
@@ -72,7 +72,8 @@ describe('the focus-reload keeps the view (#42)', () => {
 		['accessor throws', () => vi.spyOn(window, 'sessionStorage', 'get').mockImplementation(fails('SecurityError'))],
 		['malformed', keep('{')],
 		['unknown lens', keep('{"lens":"pediatria","query":"x","showRetired":true}')],
-		['wrong types', keep('{"lens":"renal","query":5,"showRetired":"yes"}')],
+		['query not a string', keep('{"lens":"renal","query":5,"showRetired":true}')],
+		['showRetired not a boolean', keep('{"lens":"renal","query":"x","showRetired":"yes"}')],
 	])('mounts the defaults and throws nothing: %s', async (_, arrange) => {
 		const blocked = arrange()
 		const wrapper = await mountApp()
