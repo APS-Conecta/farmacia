@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
-import { nextTick } from 'vue'
-import { mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { nextTick, reactive } from 'vue'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
 import ImportDialog from './ImportDialog.vue'
+import { BATCH_STATE_LABELS, revertCounters } from '../import.js'
+
+enableAutoUnmount(afterEach)
 
 /** One staged row as the review serves it, owing what `pending` says. */
 function row(id, pending) {
@@ -22,11 +25,11 @@ const CATEGORIES = [
 	{ id: 2, slug: 'salud_mental', label: 'Salud mental' },
 ]
 
-function dialog(review) {
+function dialog(rows) {
 	return mount(ImportDialog, {
 		props: {
 			batches: [],
-			review: { batch: { id: 11, state: 'staged' }, rows: review },
+			review: rows === null ? null : reactive({ batch: { id: 11, state: 'staged' }, rows }),
 			categories: CATEGORIES,
 			abastece: [],
 		},
@@ -36,17 +39,37 @@ function dialog(review) {
 	})
 }
 
-/** The editor's primary Resolver — the button decisionReady gates. NcDialog
- *  teleports, so the button is looked up in the document, not the wrapper. */
-function resolver() {
+/** The button labelled `label` — the editor's primary Resolver that
+ *  decisionReady gates, or the picking half's Revisar. NcDialog teleports,
+ *  so the button is looked up in the document, not the wrapper. */
+function findButton(label) {
 	return [...document.querySelectorAll('button')]
-		.find((button) => button.textContent.trim() === 'Resolver')
+		.find((button) => button.textContent.trim() === label)
+}
+
+/** A planilla of `kb` KB; every pick shares one name, as a same-path re-pick does. */
+function planilla(kb) {
+	return new window.File(['x'.repeat(kb * 1024)], 'planilla.csv')
+}
+
+/** Makes the file input hold `file` and fires `type` on it. */
+async function choose(file, type = 'change') {
+	const input = document.querySelector('input[type="file"]')
+	Object.defineProperty(input, 'files', { value: [file], configurable: true })
+	input.dispatchEvent(new window.Event(type))
+	await nextTick()
+}
+
+/** The picked file's name and size hint, or undefined when none is shown. */
+function fileHint() {
+	return [...document.querySelectorAll('.import-dialog__hint')]
+		.find((hint) => hint.textContent.includes(' KB'))?.textContent.trim()
 }
 
 async function openEditor(wrapper, theRow) {
 	wrapper.vm.startDecision(theRow)
 	await nextTick()
-	return resolver()
+	return findButton('Resolver')
 }
 
 describe('ImportDialog decisionReady (L2-18)', () => {
@@ -89,5 +112,131 @@ describe('ImportDialog decisionReady (L2-18)', () => {
 
 		expect(button.disabled).toBe(false)
 		wrapper.unmount()
+	})
+})
+
+describe('ImportDialog picked file', () => {
+	let wrapper
+	beforeEach(() => {
+		wrapper = dialog(null)
+	})
+
+	it('uploads the file a same-path re-pick reported as cancel', async () => {
+		const edited = planilla(3)
+		await choose(planilla(1))
+		await choose(edited, 'cancel')
+		findButton('Revisar').click()
+
+		expect(wrapper.emitted('upload')[0][0]).toBe(edited)
+		expect(fileHint()).toBe('planilla.csv · 3 KB')
+	})
+
+	it('starts with no file after Descartar', async () => {
+		await choose(planilla(1))
+		await wrapper.setProps({ review: { batch: { id: 11, state: 'staged' }, rows: [] } })
+		await wrapper.setProps({ review: null })
+
+		expect(fileHint()).toBeUndefined()
+		expect(findButton('Revisar').disabled).toBe(true)
+	})
+
+	it('keeps the pick through a refusal, and a new pick replaces it', async () => {
+		const first = planilla(1)
+		const second = planilla(2)
+		await choose(first)
+		await wrapper.setProps({ error: 'El archivo no tiene filas debajo del encabezado.' })
+		expect(fileHint()).toBe('planilla.csv · 1 KB')
+		findButton('Revisar').click()
+		await choose(second)
+		findButton('Revisar').click()
+
+		const [[sentFirst], [sentSecond]] = wrapper.emitted('upload')
+		expect(sentFirst).toBe(first)
+		expect(sentSecond).toBe(second)
+		expect(fileHint()).toBe('planilla.csv · 2 KB')
+	})
+})
+
+describe('ImportDialog recent batches', () => {
+	it('says what an undo did on its row, and leaves the other rows as they were', async () => {
+		const revert = {
+			id: 13,
+			originalFilename: 'arsenal.csv',
+			startedAt: '2026-10-26 10:05',
+			state: 'applied',
+			isRevert: true,
+			revertsId: 12,
+			undone: false,
+			updated: 37,
+			skipped: 3,
+		}
+		const applied = {
+			id: 12,
+			originalFilename: 'arsenal.csv',
+			startedAt: '2026-10-26 10:00',
+			state: 'applied',
+			isRevert: false,
+			undone: true,
+			updated: 40,
+			skipped: 0,
+		}
+		const wrapper = mount(ImportDialog, {
+			props: { batches: [revert, applied], review: null, categories: [], abastece: [] },
+			attachTo: document.body,
+		})
+		await nextTick()
+
+		const [revertRow, appliedRow] = document.querySelectorAll('.import-dialog__batch')
+		expect(appliedRow.querySelector('.import-dialog__hint').textContent.replace(/\s+/g, ' ').trim())
+			.toBe(`${applied.originalFilename} · ${applied.startedAt} · ${BATCH_STATE_LABELS.applied}`)
+		expect(revertRow.textContent).toContain(revertCounters(revert))
+		wrapper.unmount()
+	})
+})
+
+/** The row as decideRow patches it back: staged, owing nothing. */
+function decided(theRow) {
+	return { ...theRow, status: 'staged', payload: { ...theRow.payload, pending: {} } }
+}
+
+function listed(selector = '.import-dialog__row') {
+	return document.querySelectorAll(selector).length
+}
+
+function onlyPendingSwitch() {
+	return document.querySelector('.import-dialog input[type="checkbox"]')
+}
+
+async function filtering(rows) {
+	const wrapper = dialog(rows)
+	onlyPendingSwitch().click()
+	await nextTick()
+	return wrapper
+}
+
+describe('ImportDialog owed-rows switch', () => {
+	const owed = { categoria: 'Desconocida' }
+	it('lists every row once the last owed row is decided in place', async () => {
+		const wrapper = await filtering([row(1, owed), decided(row(2, {}))])
+		expect(listed()).toBe(1)
+		wrapper.props('review').rows.splice(0, 1, decided(row(1, owed)))
+		await nextTick()
+		expect(listed()).toBe(2)
+	})
+
+	it('starts a replacing review with the switch off', async () => {
+		const wrapper = await filtering([row(1, owed), decided(row(2, {}))])
+		await wrapper.setProps({ review: null })
+		await wrapper.setProps({ review: { batch: { id: 12, state: 'staged' }, rows: [row(3, owed), decided(row(4, {}))] } })
+		expect(onlyPendingSwitch().checked).toBe(false)
+		expect(listed()).toBe(2)
+	})
+
+	it('keeps listing exactly the rows still owed', async () => {
+		const wrapper = await filtering([row(1, owed), row(2, owed), decided(row(3, {}))])
+		wrapper.props('review').rows.splice(0, 1, decided(row(1, owed)))
+		await nextTick()
+		expect(listed()).toBe(1)
+		expect(listed('.import-dialog__row--owing')).toBe(1)
 	})
 })
