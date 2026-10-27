@@ -37,10 +37,12 @@
 
 				<label class="import-dialog__file">
 					<span>Archivo</span>
+					<!-- pick() also runs on cancel: Chromium reports a re-pick of the same path as cancel. -->
 					<input type="file"
 						accept=".csv,text/csv"
 						:disabled="busy"
-						@change="pick">
+						@change="pick"
+						@cancel="pick">
 				</label>
 
 				<p v-if="file !== null" class="import-dialog__hint">
@@ -322,6 +324,15 @@ export default {
 		 */
 		decisionReady() {
 			return ready(this.decisionRow, this.decisions[this.deciding], Boolean(this.owed?.categoria))
+		},
+	},
+
+	watch: {
+		// The per-review reset: a review replaced or cleared (Descartar) starts
+		// the picking half with no file; a refusal leaves `review` null and keeps
+		// the pick. Shallow on purpose: a row patched in place is the same review.
+		review() {
+			this.file = null
 		},
 	},
 
