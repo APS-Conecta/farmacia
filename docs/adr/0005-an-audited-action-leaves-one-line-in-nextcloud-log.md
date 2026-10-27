@@ -1,6 +1,6 @@
 # ADR-0005 — An audited action leaves one line in nextcloud.log
 
-- **Status:** proposed
+- **Status:** accepted (2026-10-27)
 - **Affects:** `farmacia/lib/Controller/MedicationController.php`, `farmacia/lib/Controller/ApiController.php`, `farmacia/lib/Controller/ImportController.php`
 
 ## Context
