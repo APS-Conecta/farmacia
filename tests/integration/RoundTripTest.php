@@ -10,6 +10,7 @@ use OCA\Farmacia\Db\MedicationMapper;
 use OCA\Farmacia\Db\MedicationRestrictionMapper;
 use OCA\Farmacia\Exception\InvalidImportException;
 use OCA\Farmacia\Exception\InvalidMedicationException;
+use OCA\Farmacia\Exception\InvalidVocabularyException;
 use OCA\Farmacia\Service\CsvReader;
 use OCA\Farmacia\Service\ExportService;
 use OCA\Farmacia\Service\MedicationService;
@@ -126,6 +127,28 @@ final class RoundTripTest extends IntegrationTestCase {
 			(string)$review['rows'][0]['notes'],
 			'the export writes the label, the import folds it, and the kept slug no longer answers — the review settles it',
 		);
+	}
+
+	public function testARenameOntoAnotherWordsNameIsRefusedSoTheRoundTripCannotMisroute(): void {
+		// The word this test owns takes the seed's name, never the reverse:
+		// a renamed seed row would outlive the cleanup.
+		$vocabulary = Server::get(VocabularyService::class);
+		foreach ($vocabulary->addCategory('Antibióticos orales') as $word) {
+			if ($word['slug'] === 'antibioticos_orales') {
+				$this->createdCategories[] = $word['id'];
+			}
+		}
+
+		try {
+			$vocabulary->renameCategory('antibioticos_orales', 'Antimicrobianos');
+			self::fail('the import would file this word\'s medications under the seed\'s «Antimicrobianos», with nothing to review');
+		} catch (InvalidVocabularyException $e) {
+			self::assertSame('Ya existe una categoría con ese nombre.', $e->getMessage());
+		}
+
+		$list = $vocabulary->categories();
+		self::assertSame('Antibióticos orales', array_column($list, 'label', 'slug')['antibioticos_orales']);
+		self::assertSame(1, array_count_values(array_column($list, 'label'))['Antimicrobianos'] ?? 0);
 	}
 
 	public function testARetiredMedicationIsNotInTheExport(): void {
