@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Service;
 
+use APS\Common\Text;
 use OCA\Farmacia\Db\CategoryMapper;
 use OCA\Farmacia\Db\ChannelMapper;
 use OCA\Farmacia\Db\Medication;
@@ -59,6 +60,12 @@ class MedicationService {
 		'programa' => [128, 'Programa'],
 	];
 
+	/**
+	 * The largest number the Types::INTEGER (signed 32-bit)
+	 * `farmacia_medication_ges.number` column holds; the staging judge reads it too.
+	 */
+	public const GES_NUMBER_MAX = 2147483647;
+
 	public function __construct(
 		private MedicationMapper $medications,
 		private MedicationGesMapper $ges,
@@ -97,9 +104,9 @@ class MedicationService {
 	/** @param array<string, mixed> $input */
 	public function create(array $input): array {
 		$medication = $this->apply(new Medication(), $input, whole: true);
-		$ges = $this->gesList($input['ges'] ?? []);
-		$restrictions = $this->restrictionList($input['restricciones'] ?? []);
-		$channels = $this->channelList($input['abastece'] ?? []);
+		$ges = $this->gesList(self::listIn($input, 'ges'));
+		$restrictions = $this->restrictionList(self::listIn($input, 'restricciones'));
+		$channels = $this->channelList(self::listIn($input, 'abastece'));
 
 		return $this->medications->transactionally(function () use ($medication, $ges, $restrictions, $channels): array {
 			$created = $this->insert($medication);
@@ -124,9 +131,9 @@ class MedicationService {
 
 		$this->apply($medication, $input, whole: false);
 
-		$ges = array_key_exists('ges', $input) ? $this->gesList($input['ges']) : null;
-		$restrictions = array_key_exists('restricciones', $input) ? $this->restrictionList($input['restricciones']) : null;
-		$channels = array_key_exists('abastece', $input) ? $this->channelList($input['abastece']) : null;
+		$ges = array_key_exists('ges', $input) ? $this->gesList(self::listIn($input, 'ges')) : null;
+		$restrictions = array_key_exists('restricciones', $input) ? $this->restrictionList(self::listIn($input, 'restricciones')) : null;
+		$channels = array_key_exists('abastece', $input) ? $this->channelList(self::listIn($input, 'abastece')) : null;
 
 		$childrenChanged = ($ges !== null && $ges !== $childrenBefore['ges'])
 			|| ($restrictions !== null && $restrictions !== $childrenBefore['restricciones'])
@@ -225,8 +232,8 @@ class MedicationService {
 			$medication->$setter($value === '' ? null : $value);
 		}
 
-		if (array_key_exists('trazador', $input)) { $medication->setTrazador((bool)$input['trazador']); }
-		if (array_key_exists('riesgoColinergicoAm', $input)) { $medication->setRiesgoColinergicoAm((bool)$input['riesgoColinergicoAm']); }
+		if (array_key_exists('trazador', $input)) { $medication->setTrazador($this->flag($input['trazador'], 'El trazador')); }
+		if (array_key_exists('riesgoColinergicoAm', $input)) { $medication->setRiesgoColinergicoAm($this->flag($input['riesgoColinergicoAm'], 'El riesgo colinérgico AM')); }
 		if (array_key_exists('fdaEmbarazo', $input)) { $medication->setFdaEmbarazo($this->fda($input['fdaEmbarazo'])); }
 
 		return $medication;
@@ -250,11 +257,20 @@ class MedicationService {
 		return $category;
 	}
 
+	private function flag(mixed $value, string $label): bool {
+		if ($value === null || is_bool($value)) { return (bool)$value; }
+		// Fold only well-formed UTF-8: an ill-formed string folds to '' and would read as no.
+		$folded = is_int($value) || (is_string($value) && mb_check_encoding($value, 'UTF-8')) ? Text::fold((string)$value) : null;
+		if (in_array($folded, ['1', 'true', 'si'], true)) { return true; }
+		if (in_array($folded, ['0', 'false', 'no', ''], true)) { return false; }
+		throw new InvalidMedicationException(sprintf('%s debe ser sí o no.', $label));
+	}
+
 	private function gesList(array $values): array {
 		$numbers = [];
 		foreach ($values as $value) {
 			$number = is_int($value) || (is_string($value) && ctype_digit($value)) ? (int)$value : null;
-			if ($number === null || $number < 1) {
+			if ($number === null || $number < 1 || $number > self::GES_NUMBER_MAX) {
 				throw new InvalidMedicationException(sprintf('El número GES «%s» no es un número de problema GES.', is_scalar($value) ? (string)$value : gettype($value)));
 			}
 			$numbers[] = $number;
@@ -305,6 +321,14 @@ class MedicationService {
 		if (count($list) > self::LIST_CAP) {
 			throw new InvalidMedicationException(sprintf('Una lista no puede pasar de %d %s.', self::LIST_CAP, $what));
 		}
+	}
+
+	/** An array is the list as sent; an absent key, null or a blank string is the empty list; any other value is refused. */
+	private static function listIn(array $input, string $key): array {
+		$value = $input[$key] ?? null;
+		if (is_array($value)) { return $value; }
+		if ($value === null || (is_string($value) && trim($value) === '')) { return []; }
+		throw new InvalidMedicationException(sprintf('El campo «%1$s» es una lista: envíe cada valor en una clave «%1$s[]=» repetida.', $key));
 	}
 
 	private function childrenOf(Medication $medication): array {

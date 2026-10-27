@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
-import { nextTick } from 'vue'
-import { mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it } from 'vitest'
+import { nextTick, reactive } from 'vue'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
 import ImportDialog from './ImportDialog.vue'
+
+enableAutoUnmount(afterEach)
 
 /** One staged row as the review serves it, owing what `pending` says. */
 function row(id, pending) {
@@ -26,7 +28,7 @@ function dialog(review) {
 	return mount(ImportDialog, {
 		props: {
 			batches: [],
-			review: { batch: { id: 11, state: 'staged' }, rows: review },
+			review: reactive({ batch: { id: 11, state: 'staged' }, rows: review }),
 			categories: CATEGORIES,
 			abastece: [],
 		},
@@ -89,5 +91,52 @@ describe('ImportDialog decisionReady (L2-18)', () => {
 
 		expect(button.disabled).toBe(false)
 		wrapper.unmount()
+	})
+})
+
+/** The row as decideRow patches it back: staged, owing nothing. */
+function decided(theRow) {
+	return { ...theRow, status: 'staged', payload: { ...theRow.payload, pending: {} } }
+}
+
+function listed(selector = '.import-dialog__row') {
+	return document.querySelectorAll(selector).length
+}
+
+function onlyPendingSwitch() {
+	return document.querySelector('.import-dialog input[type="checkbox"]')
+}
+
+async function filtering(rows) {
+	const wrapper = dialog(rows)
+	onlyPendingSwitch().click()
+	await nextTick()
+	return wrapper
+}
+
+describe('ImportDialog owed-rows switch', () => {
+	const owed = { categoria: 'Desconocida' }
+	it('lists every row once the last owed row is decided in place', async () => {
+		const wrapper = await filtering([row(1, owed), decided(row(2, {}))])
+		expect(listed()).toBe(1)
+		wrapper.props('review').rows.splice(0, 1, decided(row(1, owed)))
+		await nextTick()
+		expect(listed()).toBe(2)
+	})
+
+	it('starts a replacing review with the switch off', async () => {
+		const wrapper = await filtering([row(1, owed), decided(row(2, {}))])
+		await wrapper.setProps({ review: null })
+		await wrapper.setProps({ review: { batch: { id: 12, state: 'staged' }, rows: [row(3, owed), decided(row(4, {}))] } })
+		expect(onlyPendingSwitch().checked).toBe(false)
+		expect(listed()).toBe(2)
+	})
+
+	it('keeps listing exactly the rows still owed', async () => {
+		const wrapper = await filtering([row(1, owed), row(2, owed), decided(row(3, {}))])
+		wrapper.props('review').rows.splice(0, 1, decided(row(1, owed)))
+		await nextTick()
+		expect(listed()).toBe(1)
+		expect(listed('.import-dialog__row--owing')).toBe(1)
 	})
 })
