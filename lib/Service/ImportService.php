@@ -198,8 +198,8 @@ class ImportService {
 	 * Record one review decision on a staged row.
 	 *
 	 * What a decision can settle is vocabulary and nothing else: the
-	 * category a row names (or lacks, on a new record from a planilla with
-	 * no Categoría column) and the channels its labels resolve to —
+	 * category a row names (or lacks, on a new record whose row carries no
+	 * Categoría) and the channels its labels resolve to —
 	 * including none of them, which is the «dejar sin canal» answer the
 	 * review offers. The cells themselves are the planilla's words and are
 	 * never rewritten here: a wrong cell is fixed in the spreadsheet and
@@ -342,15 +342,11 @@ class ImportService {
 		// is missing or its line ends before it, and a stored one cannot clear
 		// it: both are refused downstream (MedicationService's own sentence) —
 		// better said here, where the person still has the planilla open.
-		if (array_key_exists('producto', $payload) || $stored === null) {
+		if (array_key_exists('producto', $payload) || ($codigo !== '' && $stored === null)) {
 			$producto = trim((string)($payload['producto'] ?? ''));
 			if ($producto === '') {
 				$problems[] = 'la fila no trae producto';
 			}
-		} elseif ($codigo !== '' && $stored === null) {
-			// A new record cannot be created without a producto, and no review
-			// decision supplies a cell: refused here, where the stage predicts the apply.
-			$problems[] = 'la fila es nueva y el archivo no trae columna Producto';
 		}
 
 		// The sí/no cells, folded with the repo's own rule so «Sí», «SI» and

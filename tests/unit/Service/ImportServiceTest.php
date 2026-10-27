@@ -328,20 +328,6 @@ final class ImportServiceTest extends TestCase {
 		self::assertStringContainsString('la fila es nueva y no trae Categoría', (string)$row['notes']);
 	}
 
-	public function testANewRowWithoutAProductoIsRefusedAtStaging(): void {
-		$this->wire();
-		$this->medications->method('findAll')->willReturn([]);
-		$this->medications->method('findRetired')->willReturn([]);
-		$this->csv->method('read')->willReturn([self::readRow(2, ['codigo' => 'F-009'])]);
-
-		$doc = $this->service->stage('csv', 'planilla.csv', null);
-
-		$row = $doc['rows'][0];
-		self::assertSame('unsupported', $row['disposition'], 'a create the apply would refuse is said at staging, not as a failed lote');
-		self::assertSame('invalid', $row['status']);
-		self::assertStringContainsString('la fila no trae producto', (string)$row['notes']);
-	}
-
 	public function testANarrowPlanillaStagesANewCodigoInvalidAndStillUpdatesTheStoredOne(): void {
 		$this->wire();
 		$this->wireStored(self::medication('F-001'));
@@ -355,7 +341,7 @@ final class ImportServiceTest extends TestCase {
 
 		[$new, $stored, $blank] = $doc['rows'];
 		self::assertSame(['unsupported', 'invalid'], [$new['disposition'], $new['status']], 'no review decision can supply a producto');
-		self::assertStringContainsString('el archivo no trae columna Producto', (string)$new['notes']);
+		self::assertStringContainsString('la fila no trae producto', (string)$new['notes']);
 		self::assertSame(['update', 'staged'], [$stored['disposition'], $stored['status']]);
 		self::assertSame('la fila no trae código', $blank['notes']);
 		self::assertSame([0, 1, 2], [$doc['batch']['created'], $doc['batch']['updated'], $doc['batch']['unsupported']]);
