@@ -202,8 +202,7 @@ class VocabularyService {
 		$word->setLabel($clean);
 
 		try {
-			// The transaction takes no lock and closes no race: the slug index
-			// is the only guard against concurrent writes, here and in renameWord().
+			// No lock, no race closed: the slug index guards concurrent adds; nothing guards concurrent renames.
 			$this->transactionally(function () use ($mapper, $clean, $kind, $word): void {
 				$this->refuseIfNameTaken($mapper, $clean, null, $kind);
 				$mapper->insert($word);
