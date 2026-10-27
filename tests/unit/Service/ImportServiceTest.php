@@ -292,6 +292,30 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame(1, $doc['batch']['created']);
 	}
 
+	public function testAnOverLongCodigoIsStoredCutToTheColumnWidthAndStagesInvalid(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		// Multibyte, so a byte-wise cut fails; the repeat takes the duplicate branch.
+		$this->csv->method('read')->willReturn([
+			self::readRow(2, self::fullCells(str_repeat('Á', 200))),
+			self::readRow(3, self::fullCells(str_repeat('B', 128))),
+			self::readRow(4, self::fullCells(str_repeat('Á', 200))),
+		]);
+
+		$doc = $this->service->stage('csv', 'planilla.csv', null);
+
+		self::assertSame(str_repeat('Á', 128), $this->inserted[0]->getCodigo());
+		self::assertSame(str_repeat('Á', 200), json_decode($this->inserted[0]->getPayload(), true)['codigo'], 'the full cell stays in the payload');
+		self::assertSame(['unsupported', 'invalid'], [$doc['rows'][0]['disposition'], $doc['rows'][0]['status']]);
+		self::assertStringContainsString('la celda Código pasa de 128 caracteres', (string)$doc['rows'][0]['notes']);
+		self::assertSame(str_repeat('B', 128), $this->inserted[1]->getCodigo(), 'a código at the column width is stored unchanged');
+		self::assertSame('create', $doc['rows'][1]['disposition']);
+		self::assertSame(str_repeat('Á', 128), $this->inserted[2]->getCodigo());
+		self::assertSame('duplicate', $doc['rows'][2]['disposition']);
+		self::assertSame([1, 1], [$doc['batch']['unsupported'], $doc['batch']['created']]);
+	}
+
 	public function testAnUnknownCategoryAndChannelSurfaceAsReviewDecisions(): void {
 		$this->wire();
 		$this->medications->method('findAll')->willReturn([]);

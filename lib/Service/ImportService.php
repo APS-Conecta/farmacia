@@ -125,7 +125,8 @@ class ImportService {
 
 			$entity = new ImportRow();
 			$entity->setLineNumber($line);
-			$entity->setCodigo($codigo);
+			// Column width: a longer código is never a create or an update.
+			$entity->setCodigo(mb_substr($codigo, 0, MedicationService::CELL_CAPS['codigo'][0]));
 			$entity->setPayload((string)json_encode($judged['payload'], JSON_UNESCAPED_UNICODE));
 			$entity->setDisposition($judged['disposition']);
 			$entity->setStatus($judged['status']);
