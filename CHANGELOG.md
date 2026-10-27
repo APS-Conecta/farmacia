@@ -11,8 +11,9 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
 - `docs/adr/0001`–`0004`: the planilla-is-a-projection, lens-is-an-initial-filter,
   retirar/restaurar-is-logical and vademécum-not-stock decisions, recorded.
-- `docs/adr/0005`: medication changes, OCS reads and writes, and import apply/revert each leave
-  one `HIPAA_AUDIT` line in `nextcloud.log` at warning level, through the app logger.
+- `docs/adr/0005`: medication changes, the OCS create, update and single-medication read, and
+  import apply/revert each leave one `HIPAA_AUDIT` line in `nextcloud.log` at warning level,
+  through the app logger.
 - `THIRD-PARTY-NOTICES.md`: the licences of everything the committed bundle ships.
 - `docs/threat-model.md`: what an attacker wants from the vademécum, the entry points and their
   guards; records the open-edit decision and names the direct OCS write path.

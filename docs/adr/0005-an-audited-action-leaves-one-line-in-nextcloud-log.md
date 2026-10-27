@@ -16,9 +16,9 @@ changed what, and when, needs an answer outside the record.
 **Each audited action writes one `HIPAA_AUDIT` line to `nextcloud.log`.**
 
 - Sidebar create, update, retire and restore (`MedicationController`), OCS create, update and
-  read (`ApiController`), and import apply and revert (`ImportController`) each write one line
-  through the app's `Psr\Log\LoggerInterface` at `warning`: the lowest level an instance at the
-  default `loglevel` 2 keeps.
+  single-medication read (`ApiController`), and import apply and revert (`ImportController`) each
+  write one line through the app's `Psr\Log\LoggerInterface` at `warning`: the lowest level an
+  instance at the default `loglevel` 2 keeps.
 - The line carries the action, the actor's uid, the `medication_id` and código (or the
   `batch_id`), the remote IP and the UTC time.
 - The logger is a required constructor dependency: the container supplies it, or the controller
