@@ -163,11 +163,13 @@ export default {
 		// Success is observable: a write that landed answers with the whole
 		// fresh list down the `entries` prop (VocabularyService's own shape).
 		// Each field is reconciled only against the write that came from it,
-		// so a landing never clears what the person is typing elsewhere, and
-		// a confirmation is dropped once its row is gone from the list. A
-		// refusal changes nothing here — the error prop shows at the top of
-		// the dialog, and each field keeps what the person typed: "a refusal
-		// must not cost the person their text" (L2-20).
+		// and a confirmation is dropped once its row is gone from the list. A
+		// refusal clears the pending write and leaves every field as the
+		// person typed it — the error prop shows at the top of the dialog:
+		// "a refusal must not cost the person their text" (L2-20).
+		error(message) {
+			if (message !== '') this.lastWrite = null
+		},
 		entries() {
 			const write = this.lastWrite
 			this.lastWrite = null

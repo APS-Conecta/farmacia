@@ -132,6 +132,17 @@ describe('VocabularyDialog landed writes', () => {
 		expect(wrapper.vm.newLabel).toBe('B')
 	})
 
+	it('keeps refused adder text when a later removal lands', async () => {
+		wrapper = dialog()
+		wrapper.vm.newLabel = 'Antihipertensivos'
+		await wrapper.vm.commitAdd()
+
+		await wrapper.setProps({ error: 'Ya existe una categoría con ese nombre.' })
+		await wrapper.setProps({ entries: [] })
+
+		expect(wrapper.vm.newLabel).toBe('Antihipertensivos')
+	})
+
 	it('shows a word added again after its removal landed unarmed', async () => {
 		wrapper = dialog()
 		document.querySelector('[aria-label="Quitar «Renombrable»"]').click()
