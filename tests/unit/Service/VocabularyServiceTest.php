@@ -358,6 +358,23 @@ final class VocabularyServiceTest extends TestCase {
 		}
 	}
 
+	public function testARenameOntoAnotherWordsSlugIsRefusedEvenAfterThatWordWasRenamed(): void {
+		// «Dental» now shows «Odontología», but the planilla still resolves
+		// «Dental» through the slug `dental` to that word: this rename would
+		// send every «Corticoides» medication there on the next import.
+		$corticoides = self::category(9, 'corticoides', 'Corticoides');
+		$this->categories->method('findBySlug')->with('corticoides')->willReturn($corticoides);
+		$this->categories->method('findAll')->willReturn([self::category(1, 'dental', 'Odontología'), $corticoides]);
+		$this->categories->expects(self::never())->method('update');
+
+		try {
+			$this->service->renameCategory('corticoides', 'Dental');
+			self::fail('a rename onto another word\'s slug must be refused');
+		} catch (InvalidVocabularyException $e) {
+			self::assertSame('Ya existe una categoría con ese nombre.', $e->getMessage());
+		}
+	}
+
 	public function testARenameThatOnlyRecasesItsOwnLabelIsAllowed(): void {
 		$dental = self::category(7, 'dental', 'Odontología');
 		$this->categories->method('findBySlug')->willReturn($dental);
