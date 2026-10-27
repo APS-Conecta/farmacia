@@ -46,15 +46,19 @@ class MedicationAbasteceMapper extends QBMapper {
 		$qb = $this->db->getQueryBuilder();
 		$qb->select('medication_id', 'channel_id')
 			->from($this->getTableName())
-			->where($qb->expr()->in('medication_id', $qb->createNamedParameter($medicationIds, IQueryBuilder::PARAM_INT_ARRAY)))
+			->where($qb->expr()->in('medication_id', $qb->createParameter('ids')))
 			->orderBy('id', 'ASC');
 
 		$byMedication = [];
-		$result = $qb->executeQuery();
-		while ($row = $result->fetch()) {
-			$byMedication[(int)$row['medication_id']][] = (int)$row['channel_id'];
+		// Nextcloud's QueryBuilder logs an error above 1000 array entries, and Oracle rejects the query.
+		foreach (array_chunk($medicationIds, 1000) as $chunk) {
+			$qb->setParameter('ids', $chunk, IQueryBuilder::PARAM_INT_ARRAY);
+			$result = $qb->executeQuery();
+			while ($row = $result->fetch()) {
+				$byMedication[(int)$row['medication_id']][] = (int)$row['channel_id'];
+			}
+			$result->closeCursor();
 		}
-		$result->closeCursor();
 
 		return $byMedication;
 	}

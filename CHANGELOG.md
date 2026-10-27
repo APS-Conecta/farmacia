@@ -71,3 +71,6 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - The lock file catches up with `package.json` (stale since the 0.11.1 release).
 - The vocabulary dialog clears its adder field once the new entry lands.
 - The export dialog's hint says «la planilla», not «el planilla».
+- The GES, restricción and canal de abastece reads send at most 1000 medication ids per query: an
+  arsenal past 1000 medications no longer logs a core error on every upload, page load and export,
+  and no longer fails on Oracle.
