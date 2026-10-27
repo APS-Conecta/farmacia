@@ -20,7 +20,7 @@ three places for the same medication to disagree with itself.
   keeps everything, `embarazo` keeps rows with an FDA category set, `renal` keeps rows with a
   renal adjustment set — and `filterMedications()` applies lens + search in one place so the list
   and any future count cannot drift apart.
-- `openLens()` (`farmacia/src/App.vue:278-284`) resets the whole filter object to
+- `openLens()` (`farmacia/src/App.vue:313-319`) resets the whole filter object to
   `{ lens: id, query: '' }`: choosing a lens is a fresh start, not a narrowing stacked on a
   forgotten search.
 - The retired screen deliberately ignores the lens (`listFor`, `farmacia/src/filters.js:78`):

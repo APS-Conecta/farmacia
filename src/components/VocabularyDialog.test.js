@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import VocabularyDialog from './VocabularyDialog.vue'
@@ -84,5 +84,91 @@ describe('VocabularyDialog rename (L2-20)', () => {
 
 		expect(wrapper.vm.newLabel).toBe('')
 		wrapper.unmount()
+	})
+})
+
+describe('VocabularyDialog landed writes', () => {
+	// NcDialog teleports into the document: unmount here so a failing test
+	// cannot leave its DOM for the next one to query.
+	let wrapper
+	afterEach(() => wrapper.unmount())
+
+	it('keeps unsent adder text when a rename lands', async () => {
+		wrapper = dialog()
+		wrapper.vm.newLabel = 'Antihipertensivos'
+		await openRename(wrapper)
+		wrapper.vm.draftLabel = 'Nuevo nombre'
+		await wrapper.vm.commitRename(ENTRIES[0])
+
+		await wrapper.setProps({ entries: RENAMED })
+
+		expect(wrapper.vm.newLabel).toBe('Antihipertensivos')
+		expect(wrapper.vm.editing).toBeNull()
+	})
+
+	it('keeps an open rename and its text when an add lands', async () => {
+		wrapper = dialog()
+		await openRename(wrapper)
+		wrapper.vm.draftLabel = 'Corrección'
+		wrapper.vm.newLabel = '  X  '
+		await wrapper.vm.commitAdd()
+		expect(wrapper.emitted('create')).toEqual([['X']])
+
+		await wrapper.setProps({ entries: [...ENTRIES, { id: 2, slug: 'x', label: 'X' }] })
+
+		expect(wrapper.vm.editing).toBe('renombrable')
+		expect(wrapper.vm.draftLabel).toBe('Corrección')
+		expect(wrapper.vm.newLabel).toBe('')
+	})
+
+	it('keeps adder text typed after sending when the earlier add lands', async () => {
+		wrapper = dialog()
+		wrapper.vm.newLabel = 'A'
+		await wrapper.vm.commitAdd()
+		wrapper.vm.newLabel = 'B'
+
+		await wrapper.setProps({ entries: [...ENTRIES, { id: 2, slug: 'a', label: 'A' }] })
+
+		expect(wrapper.vm.newLabel).toBe('B')
+	})
+
+	it('keeps refused adder text when a later removal lands', async () => {
+		wrapper = dialog()
+		wrapper.vm.newLabel = 'Antihipertensivos'
+		await wrapper.vm.commitAdd()
+
+		await wrapper.setProps({ error: 'Ya existe una categoría con ese nombre.' })
+		await wrapper.setProps({ entries: [] })
+
+		expect(wrapper.vm.newLabel).toBe('Antihipertensivos')
+	})
+
+	it('shows a word added again after its removal landed unarmed', async () => {
+		wrapper = dialog()
+		document.querySelector('[aria-label="Quitar «Renombrable»"]').click()
+		await nextTick()
+		const row = document.querySelector('.vocabulary-dialog__confirm').closest('li')
+		;[...row.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Quitar').click()
+		expect(wrapper.emitted('remove')).toEqual([['renombrable']])
+
+		await wrapper.setProps({ entries: [] })
+		await wrapper.setProps({ entries: [{ ...ENTRIES[0] }] })
+
+		expect(document.querySelector('.vocabulary-dialog__confirm')).toBeNull()
+		expect(document.querySelector('.vocabulary-dialog__name').textContent.trim()).toBe('Renombrable')
+		expect(document.querySelector('[aria-label="Quitar «Renombrable»"]')).not.toBeNull()
+	})
+
+	it('keeps Quitar armed on a row still listed when an add lands', async () => {
+		wrapper = dialog()
+		document.querySelector('[aria-label="Quitar «Renombrable»"]').click()
+		await nextTick()
+		wrapper.vm.newLabel = 'X'
+		await wrapper.vm.commitAdd()
+
+		await wrapper.setProps({ entries: [...ENTRIES, { id: 2, slug: 'x', label: 'X' }] })
+
+		expect(wrapper.vm.confirming).toBe('renombrable')
+		expect(document.querySelector('.vocabulary-dialog__confirm')).not.toBeNull()
 	})
 })
