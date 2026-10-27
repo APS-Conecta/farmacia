@@ -168,6 +168,10 @@ class ApiController extends OCSController {
 	 * (form-encoded or query string, the OCS-classic encodings; repeated
 	 * `ges[]=…` keys carry the lists).
 	 *
+	 * `trazador` and `riesgoColinergicoAm` read `true`, `1` or `sí` as yes and
+	 * `false`, `0`, `no` or empty as no (case, accents and surrounding spaces
+	 * aside); any other value is refused with 422.
+	 *
 	 * @return DataResponse<Http::STATUS_CREATED|Http::STATUS_UNPROCESSABLE_ENTITY, array<string, mixed>, array{}>
 	 *
 	 * 201: The stored medication, the browser payload shape (children attached)
