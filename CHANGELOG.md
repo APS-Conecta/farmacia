@@ -68,3 +68,5 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - The lock file catches up with `package.json` (stale since the 0.11.1 release).
 - The vocabulary dialog clears its adder field once the new entry lands.
 - The export dialog's hint says «la planilla», not «el planilla».
+- A vocabulary write's answer now replaces the vocabulary it was sent for, and its refusal shows only
+  in that vocabulary's dialog (#41).

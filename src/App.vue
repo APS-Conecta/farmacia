@@ -261,15 +261,19 @@ export default {
 		 * @param {string} label the stable half of the log line, e.g. 'could not save the medication'
 		 * @param {string} onError the data field the sentence lands in
 		 * @param {string|Function} fallback the no-response sentence, or (exception) => sentence
+		 * @param {Function} [isCurrent] read once the sentence is known; false drops it (the screen it was for has gone) and keeps the log line
 		 */
-		async runRequest({ request, label, onError, fallback }) {
+		async runRequest({ request, label, onError, fallback, isCurrent = () => true }) {
 			try {
 				const { data } = await request()
 				return data
 			} catch (exception) {
-				this[onError] = typeof fallback === 'function'
+				const sentence = typeof fallback === 'function'
 					? await fallback(exception)
 					: await messageFrom(exception, fallback)
+				if (isCurrent()) {
+					this[onError] = sentence
+				}
 				safeError(label, exception)
 				return null
 			}
@@ -627,6 +631,8 @@ export default {
 		},
 
 		async writeWord(request) {
+			// Fixed at send time: the same tick in which wordUrl() builds the endpoint.
+			const which = this.vocabulary
 			this.vocabularyError = ''
 
 			const data = await this.runRequest({
@@ -634,10 +640,11 @@ export default {
 				label: 'could not write the vocabulary',
 				onError: 'vocabularyError',
 				fallback: 'No se pudo guardar. Revise la conexión e inténtelo de nuevo.',
+				isCurrent: () => this.vocabulary === which,
 			})
 
 			if (data !== null) {
-				if (this.vocabulary === 'categories') {
+				if (which === 'categories') {
 					this.categories = data
 				} else {
 					this.abastece = data
