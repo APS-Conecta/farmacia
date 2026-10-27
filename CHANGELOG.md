@@ -73,3 +73,5 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - The export dialog's hint says «la planilla», not «el planilla».
 - A GES number above 2147483647 is refused with a sentence (Guardar, OCS, planilla staging)
   instead of a 500.
+- Returning to the window keeps the lente, the search text and Ver retirados instead of
+  resetting to Arsenal Farmacológico.
