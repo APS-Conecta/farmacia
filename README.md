@@ -36,7 +36,7 @@ El manual de uso, el diseño, el contrato OCS y las novedades viven en el sitio 
 Dentro de este repositorio quedan solo los documentos que viajan con el código:
 
 - [`CONTEXT.md`](CONTEXT.md): el vocabulario del dominio (arsenal farmacológico, lente, planilla, lote, retirar y restaurar), en inglés.
-- [`docs/adr/`](docs/adr/): las decisiones y su razonamiento (0001 a 0004).
+- [`docs/adr/`](docs/adr/): las decisiones y su razonamiento (0001 a 0005).
 - [`docs/threat-model.md`](docs/threat-model.md): qué busca un atacante, las puertas de entrada y sus guardas.
 - [`openapi.json`](openapi.json): el contrato OCS, generado.
 - [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md): los componentes de terceros del paquete y sus licencias.
