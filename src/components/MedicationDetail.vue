@@ -270,6 +270,14 @@ export default {
 		},
 	},
 
+	watch: {
+		// Retire and restore keep the id, so the keyed sidebar patches this form
+		// instead of remounting it (L2-16): a change of state disarms Retirar.
+		retired() {
+			this.confirmingRetire = false
+		},
+	},
+
 	methods: {
 		addGes() {
 			const value = this.newGes.trim()
