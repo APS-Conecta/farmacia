@@ -68,3 +68,5 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - The lock file catches up with `package.json` (stale since the 0.11.1 release).
 - The vocabulary dialog clears its adder field once the new entry lands.
 - The export dialog's hint says «la planilla», not «el planilla».
+- A GES number above 2147483647 is refused with a sentence (Guardar, OCS, planilla staging)
+  instead of a 500.

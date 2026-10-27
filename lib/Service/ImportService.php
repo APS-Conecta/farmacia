@@ -370,7 +370,7 @@ class ImportService {
 
 		if (array_key_exists('ges', $payload)) {
 			foreach ($payload['ges'] as $number) {
-				if (!ctype_digit((string)$number) || (int)$number < 1) {
+				if (!ctype_digit((string)$number) || (int)$number < 1 || (int)$number > MedicationService::GES_NUMBER_MAX) {
 					$problems[] = sprintf('la celda GES trae «%s»: un número de problema GES', (string)$number);
 				}
 			}
