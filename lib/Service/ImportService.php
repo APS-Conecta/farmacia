@@ -347,6 +347,10 @@ class ImportService {
 			if ($producto === '') {
 				$problems[] = 'la fila no trae producto';
 			}
+		} elseif ($codigo !== '' && $stored === null) {
+			// A new record cannot be created without a producto, and no review
+			// decision supplies a cell: refused here, where the stage predicts the apply.
+			$problems[] = 'la fila es nueva y el archivo no trae columna Producto';
 		}
 
 		// The sí/no cells, folded with the repo's own rule so «Sí», «SI» and
