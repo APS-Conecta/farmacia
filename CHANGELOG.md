@@ -79,3 +79,4 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - The GES, restricción and canal de abastece reads send at most 1000 medication ids per query: an
   arsenal past 1000 medications no longer logs a core error on every upload, page load and export,
   and no longer fails on Oracle.
+- After Restaurar, a medicamento's actions bar starts again at «Retirar del arsenal», not at an armed confirmation.
