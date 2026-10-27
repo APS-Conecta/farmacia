@@ -58,10 +58,62 @@ final class MedicationRoundTripTest extends IntegrationTestCase {
 	}
 
 	public function testAnAbsentChildKeyLeavesThatSetAlone(): void {
-		$id = $this->medication('F-102', ['ges' => [1, 17]]);
+		$id = $this->medication('F-102', ['ges' => [1, 17], 'trazador' => true]);
 		$payload = $this->service->update($id, ['producto' => 'Otro nombre']);
 		self::assertSame('Otro nombre', $payload['producto']);
 		self::assertSame([1, 17], $payload['ges']);
+		self::assertTrue($payload['trazador']);
+	}
+
+	/** @return array<string, array{mixed, bool}> */
+	public static function flagSpellings(): array {
+		return [
+			'string false' => ['false', false],
+			'string no' => ['no', false],
+			'string 0' => ['0', false],
+			'empty string' => ['', false],
+			'null' => [null, false],
+			'bool false' => [false, false],
+			'int 0' => [0, false],
+			'string true' => ['true', true],
+			'string 1' => ['1', true],
+			'string Sí' => ['Sí', true],
+			'padded TRUE' => [' TRUE ', true],
+			'bool true' => [true, true],
+			'int 1' => [1, true],
+		];
+	}
+
+	/** @dataProvider flagSpellings */
+	public function testAFlagReadsTheAcceptedSpellings(mixed $given, bool $expected): void {
+		$id = $this->medication('F-flag-' . $this->dataName(), ['trazador' => !$expected, 'riesgoColinergicoAm' => !$expected]);
+		$payload = $this->service->update($id, ['trazador' => $given, 'riesgoColinergicoAm' => $given]);
+		foreach ([$payload, $this->service->read($id)] as $stored) {
+			self::assertSame($expected, $stored['trazador']);
+			self::assertSame($expected, $stored['riesgoColinergicoAm']);
+		}
+	}
+
+	/** @return array<string, array{mixed}> */
+	public static function flagsOutsideTheSpellings(): array {
+		return [
+			'maybe' => ['maybe'],
+			'string 2' => ['2'],
+			'array' => [['1']],
+			'Latin-1 Sí' => ["S\xED"],
+		];
+	}
+
+	/** @dataProvider flagsOutsideTheSpellings */
+	public function testAFlagOutsideTheSpellingsIsRefusedAndNothingIsWritten(mixed $given): void {
+		$id = $this->medication('F-flag-refused-' . $this->dataName(), ['riesgoColinergicoAm' => true]);
+		try {
+			$this->service->update($id, ['riesgoColinergicoAm' => $given]);
+			self::fail('a flag outside the accepted spellings must be refused');
+		} catch (InvalidMedicationException $e) {
+			self::assertSame('El riesgo colinérgico AM debe ser sí o no.', $e->getMessage());
+		}
+		self::assertTrue($this->service->read($id)['riesgoColinergicoAm']);
 	}
 
 	public function testASaveThatChangesNothingDoesNotStampUpdatedAt(): void {
@@ -184,6 +236,49 @@ final class MedicationRoundTripTest extends IntegrationTestCase {
 		$this->created[] = (int)$payload['id'];
 
 		self::assertSame([1, 2], $payload['ges']);
+	}
+
+	/** @return array<string, array{int|string}> */
+	public static function gesBeyondTheColumnProvider(): array {
+		return [
+			'one past the column' => ['2147483648'],
+			'a typed string' => ['3000000000'],
+			'an int' => [3000000000],
+			'past PHP_INT_MAX' => ['9999999999999999999999999'],
+		];
+	}
+
+	/** @dataProvider gesBeyondTheColumnProvider */
+	public function testAGesNumberBeyondTheColumnIsRefused(int|string $number): void {
+		$this->expectException(InvalidMedicationException::class);
+		$this->expectExceptionMessage(sprintf('El número GES «%s» no es un número de problema GES.', $number));
+		try {
+			$this->service->create([
+				'codigo' => 'F-115',
+				'producto' => 'Producto',
+				'categoryId' => $this->categoryIdBySlug('otros'),
+				'ges' => [$number],
+			]);
+		} finally {
+			// Guard, not the red proof: create() already writes inside a
+			// transaction, so a refusal must leave no row behind.
+			$leaked = array_values(array_filter($this->service->listAll(), static fn ($r): bool => $r['codigo'] === 'F-115'));
+			$this->created = array_merge($this->created, array_column($leaked, 'id'));
+			self::assertSame([], $leaked, 'a refused create must write nothing');
+		}
+	}
+
+	public function testTheLargestGesNumberTheColumnHoldsRoundTrips(): void {
+		$payload = $this->service->create([
+			'codigo' => 'F-116',
+			'producto' => 'Producto',
+			'categoryId' => $this->categoryIdBySlug('otros'),
+			'ges' => ['2147483647'],
+		]);
+		$this->created[] = (int)$payload['id'];
+
+		self::assertSame([2147483647], $payload['ges']);
+		self::assertSame([2147483647], $this->service->read((int)$payload['id'])['ges']);
 	}
 
 	public function testARealChannelAssignmentRoundTrips(): void {

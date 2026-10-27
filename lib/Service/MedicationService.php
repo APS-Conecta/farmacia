@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Service;
 
+use APS\Common\Text;
 use OCA\Farmacia\Db\CategoryMapper;
 use OCA\Farmacia\Db\ChannelMapper;
 use OCA\Farmacia\Db\Medication;
@@ -58,6 +59,12 @@ class MedicationService {
 		'presentacion' => [255, 'Presentación'],
 		'programa' => [128, 'Programa'],
 	];
+
+	/**
+	 * The largest number the Types::INTEGER (signed 32-bit)
+	 * `farmacia_medication_ges.number` column holds; the staging judge reads it too.
+	 */
+	public const GES_NUMBER_MAX = 2147483647;
 
 	public function __construct(
 		private MedicationMapper $medications,
@@ -225,8 +232,8 @@ class MedicationService {
 			$medication->$setter($value === '' ? null : $value);
 		}
 
-		if (array_key_exists('trazador', $input)) { $medication->setTrazador((bool)$input['trazador']); }
-		if (array_key_exists('riesgoColinergicoAm', $input)) { $medication->setRiesgoColinergicoAm((bool)$input['riesgoColinergicoAm']); }
+		if (array_key_exists('trazador', $input)) { $medication->setTrazador($this->flag($input['trazador'], 'El trazador')); }
+		if (array_key_exists('riesgoColinergicoAm', $input)) { $medication->setRiesgoColinergicoAm($this->flag($input['riesgoColinergicoAm'], 'El riesgo colinérgico AM')); }
 		if (array_key_exists('fdaEmbarazo', $input)) { $medication->setFdaEmbarazo($this->fda($input['fdaEmbarazo'])); }
 
 		return $medication;
@@ -250,11 +257,20 @@ class MedicationService {
 		return $category;
 	}
 
+	private function flag(mixed $value, string $label): bool {
+		if ($value === null || is_bool($value)) { return (bool)$value; }
+		// Fold only well-formed UTF-8: an ill-formed string folds to '' and would read as no.
+		$folded = is_int($value) || (is_string($value) && mb_check_encoding($value, 'UTF-8')) ? Text::fold((string)$value) : null;
+		if (in_array($folded, ['1', 'true', 'si'], true)) { return true; }
+		if (in_array($folded, ['0', 'false', 'no', ''], true)) { return false; }
+		throw new InvalidMedicationException(sprintf('%s debe ser sí o no.', $label));
+	}
+
 	private function gesList(array $values): array {
 		$numbers = [];
 		foreach ($values as $value) {
 			$number = is_int($value) || (is_string($value) && ctype_digit($value)) ? (int)$value : null;
-			if ($number === null || $number < 1) {
+			if ($number === null || $number < 1 || $number > self::GES_NUMBER_MAX) {
 				throw new InvalidMedicationException(sprintf('El número GES «%s» no es un número de problema GES.', is_scalar($value) ? (string)$value : gettype($value)));
 			}
 			$numbers[] = $number;
