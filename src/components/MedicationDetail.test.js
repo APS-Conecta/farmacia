@@ -21,6 +21,7 @@ const Host = defineComponent({
 		return h(MedicationDetail, {
 			key: this.draft.id,
 			draft: this.draft,
+			retired: this.draft.retired,
 			categories: [],
 			abastece: [],
 		})
@@ -29,6 +30,10 @@ const Host = defineComponent({
 
 function detailOf(wrapper) {
 	return wrapper.getComponent(MedicationDetail)
+}
+
+function buttonNamed(wrapper, name) {
+	return wrapper.findAll('button').find((button) => button.text() === name)
 }
 
 describe('MedicationDetail inside a keyed host (L2-16)', () => {
@@ -87,5 +92,38 @@ describe('MedicationDetail inside a keyed host (L2-16)', () => {
 
 		expect(wrapper.vm.draft.restricciones).toContain('Solo receta retenida')
 		expect(detail.vm.newRestriction).toBe('')
+	})
+
+	it('disarms Retirar when the same record is retired and restored', async () => {
+		const wrapper = mount(Host)
+		const detail = detailOf(wrapper)
+
+		await buttonNamed(detail, 'Retirar del arsenal').trigger('click')
+		expect(buttonNamed(detail, 'Cancelar')).toBeDefined()
+
+		// App's retire, then restore: a fresh draft with the same id, so the
+		// keyed sidebar patches this instance instead of remounting it.
+		wrapper.vm.draft = draftFrom({ id: 1, producto: 'A', retired: true })
+		await nextTick()
+		wrapper.vm.draft = draftFrom({ id: 1, producto: 'A', retired: false })
+		await nextTick()
+
+		expect(detailOf(wrapper).vm).toBe(detail.vm)
+		expect(buttonNamed(detail, 'Retirar del arsenal')).toBeDefined()
+		expect(buttonNamed(detail, 'Retirar')).toBeUndefined()
+		expect(buttonNamed(detail, 'Cancelar')).toBeUndefined()
+	})
+
+	it('disarms on Cancelar and emits retire once on Retirar', async () => {
+		const wrapper = mount(Host)
+		const detail = detailOf(wrapper)
+
+		await buttonNamed(detail, 'Retirar del arsenal').trigger('click')
+		await buttonNamed(detail, 'Cancelar').trigger('click')
+		expect(buttonNamed(detail, 'Cancelar')).toBeUndefined()
+
+		await buttonNamed(detail, 'Retirar del arsenal').trigger('click')
+		await buttonNamed(detail, 'Retirar').trigger('click')
+		expect(detail.emitted('retire')).toHaveLength(1)
 	})
 })

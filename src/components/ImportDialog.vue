@@ -37,10 +37,12 @@
 
 				<label class="import-dialog__file">
 					<span>Archivo</span>
+					<!-- pick() also runs on cancel: Chromium reports a re-pick of the same path as cancel. -->
 					<input type="file"
 						accept=".csv,text/csv"
 						:disabled="busy"
-						@change="pick">
+						@change="pick"
+						@cancel="pick">
 				</label>
 
 				<p v-if="file !== null" class="import-dialog__hint">
@@ -67,7 +69,7 @@
 								<strong>Lote #{{ batch.id }}</strong>
 								<span class="import-dialog__hint">
 									{{ batch.originalFilename }} · {{ batch.startedAt }} ·
-									{{ BATCH_STATE_LABELS[batch.state] }}<template v-if="batch.isRevert"> · deshace el lote #{{ batch.revertsId }}</template>
+									{{ BATCH_STATE_LABELS[batch.state] }}<template v-if="batch.isRevert"> · deshace el lote #{{ batch.revertsId }} · {{ revertCounters(batch) }}</template>
 								</span>
 							</span>
 							<NcButton v-if="batch.state === 'staged'"
@@ -222,7 +224,7 @@ import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard'
 import NcSelect from '@nextcloud/vue/components/NcSelect'
 
-import { BATCH_STATE_LABELS, DISPOSITION_LABELS, counters, decisionFor, decisionReady as ready, pendingRows } from '../import.js'
+import { BATCH_STATE_LABELS, DISPOSITION_LABELS, counters, decisionFor, decisionReady as ready, pendingRows, revertCounters } from '../import.js'
 
 export default {
 	name: 'ImportDialog',
@@ -269,8 +271,9 @@ export default {
 			return this.review === null ? [] : pendingRows(this.review.rows)
 		},
 
+		/** The owed rows while the switch is on and a row is owed; every row otherwise. */
 		shownRows() {
-			return this.onlyPending ? this.pending : this.review?.rows ?? []
+			return this.onlyPending && this.pending.length > 0 ? this.pending : this.review?.rows ?? []
 		},
 
 		/** The row under the editor, or null. */
@@ -325,8 +328,20 @@ export default {
 		},
 	},
 
+	watch: {
+		// The per-review reset: App replacing or clearing the review (Descartar)
+		// turns the switch off and starts the picking half with no file; a refusal
+		// leaves `review` null and keeps the pick. Shallow on purpose: decideRow
+		// patching a row into the same document is the same review.
+		review() {
+			this.onlyPending = false
+			this.file = null
+		},
+	},
+
 	methods: {
 		counters,
+		revertCounters,
 
 		pick(event) {
 			this.file = event.target.files?.[0] ?? null
