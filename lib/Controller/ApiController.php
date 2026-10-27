@@ -18,9 +18,9 @@ use OCP\AppFramework\Http\Attribute\OpenAPI;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
-use OCP\ILogger;
 use OCP\IRequest;
 use OCP\IUserSession;
+use Psr\Log\LoggerInterface;
 
 /**
  * The vademécum over OCS — the contract a future suite app reads, and the
@@ -72,8 +72,8 @@ class ApiController extends OCSController {
 		IRequest $request,
 		private MedicationService $medications,
 		private VocabularyService $vocabulary,
-		private ?IUserSession $userSession = null,
-		private ?ILogger $logger = null,
+		private IUserSession $userSession,
+		private LoggerInterface $logger,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -313,9 +313,9 @@ class ApiController extends OCSController {
 	}
 
 	private function logAuditEvent(string $action, ?int $entityId, ?string $codigo): void {
-		$actor = $this->userSession?->getUser()?->getUID() ?? 'system';
+		$actor = $this->userSession->getUser()?->getUID() ?? 'system';
 		$ip = $this->request->getRemoteAddress() ?? '127.0.0.1';
-		$this->logger?->info(sprintf(
+		$this->logger->warning(sprintf(
 			'HIPAA_AUDIT: %s by actor=%s on medication_id=%s codigo=%s from ip=%s at %s',
 			$action,
 			$actor,
