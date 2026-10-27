@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import axios from '@nextcloud/axios'
 import App from './App.vue'
+import MedicationList from './components/MedicationList.vue'
 
 /**
  * The app-root harness (#40): the real App with its real list, form and
@@ -418,5 +419,96 @@ describe('App lote undo (#43)', () => {
 		await request.resolve(REVERT)
 
 		expect(window.location.reload).toHaveBeenCalledTimes(1)
+	})
+})
+
+const KEPT = 'farmacia.view'
+const DEFAULTS = { lens: 'arsenal', query: '', showRetired: false, active: ['Arsenal Farmacológico'] }
+const fails = (name) => () => { throw new window.DOMException(name, name) }
+
+function navItems() {
+	return wrapper.findAllComponents({ name: 'NcAppNavigationItem' })
+}
+
+/** What the person sees: the list's lente, search and Ver retirados, and the highlighted lente. */
+function view() {
+	const { filter, showRetired } = wrapper.getComponent(MedicationList).props()
+	const active = navItems().filter((item) => item.props('active')).map((item) => item.props('name'))
+	return { ...filter, showRetired, active }
+}
+
+/** The page the focus-reload loads: the app root mounted again. */
+async function remount() {
+	wrapper.unmount()
+	wrapper = mount(App)
+	await flushPromises()
+}
+
+/** Alt-tab away and back: the blur/focus pair the app reloads on. */
+function returnToWindow() {
+	window.dispatchEvent(new window.Event('blur'))
+	window.dispatchEvent(new window.Event('focus'))
+}
+
+describe('the focus-reload keeps the view (#42)', () => {
+	let reload
+
+	beforeEach(() => {
+		reload = vi.fn()
+		vi.stubGlobal('location', { reload })
+		window.sessionStorage.clear()
+	})
+
+	afterEach(() => {
+		vi.restoreAllMocks()
+		vi.unstubAllGlobals()
+	})
+
+	it('keeps the lente, search and Ver retirados across the focus-reload, once', async () => {
+		const embarazo = navItems().find((item) => item.props('name') === 'Fármacos en embarazo')
+		await embarazo.get('.app-navigation-entry-link').trigger('click')
+		wrapper.getComponent(MedicationList).vm.$emit('update:query', 'amoxi')
+		wrapper.getComponent(MedicationList).vm.$emit('update:show-retired', true)
+		returnToWindow()
+		expect(reload).toHaveBeenCalledTimes(1)
+
+		await remount()
+		expect(view()).toMatchObject({ lens: 'embarazo', query: 'amoxi', showRetired: true })
+		await remount()
+		expect(view()).toEqual(DEFAULTS)
+	})
+
+	const keep = (value) => () => window.sessionStorage.setItem(KEPT, value)
+	it.each([
+		['nothing kept', () => {}],
+		['accessor throws', () => vi.spyOn(window, 'sessionStorage', 'get').mockImplementation(fails('SecurityError'))],
+		['malformed', keep('{')],
+		['unknown lens', keep('{"lens":"pediatria","query":"x","showRetired":true}')],
+		['query not a string', keep('{"lens":"renal","query":5,"showRetired":true}')],
+		['showRetired not a boolean', keep('{"lens":"renal","query":"x","showRetired":"yes"}')],
+	])('mounts the defaults and throws nothing: %s', async (_, arrange) => {
+		const blocked = arrange()
+		await remount()
+		expect(view()).toEqual(DEFAULTS)
+		expect(wrapper.find('.farmacia__state-failed').exists()).toBe(false)
+		if (blocked) {
+			expect(blocked).toHaveBeenCalled()
+			blocked.mockRestore()
+		}
+		expect(window.sessionStorage.getItem(KEPT)).toBeNull()
+	})
+
+	it('a save that throws still reloads', async () => {
+		const full = vi.spyOn(Object.getPrototypeOf(window.sessionStorage), 'setItem').mockImplementation(fails('QuotaExceededError'))
+		returnToWindow()
+		expect(full).toHaveBeenCalled()
+		expect(reload).toHaveBeenCalledTimes(1)
+	})
+
+	it.each(['Agregar medicamento', 'Importar planilla', 'Exportar planilla', 'Categorías'])('a guarded focus neither reloads nor keeps a view: %s', async (text) => {
+		await click(text)
+		returnToWindow()
+		expect(reload).not.toHaveBeenCalled()
+		expect(window.sessionStorage.getItem(KEPT)).toBeNull()
 	})
 })

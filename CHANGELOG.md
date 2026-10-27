@@ -82,3 +82,5 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
   arsenal past 1000 medications no longer logs a core error on every upload, page load and export,
   and no longer fails on Oracle.
 - After Restaurar, a medicamento's actions bar starts again at «Retirar del arsenal», not at an armed confirmation.
+- Returning to the window keeps the lente, the search text and Ver retirados instead of
+  resetting to Arsenal Farmacológico.

@@ -168,6 +168,37 @@ const LENSES = [
 	{ id: 'renal', name: 'Ajuste farmacológico ERC' },
 ]
 
+/**
+ * The focus-reload's kept view (#42): keepView writes this tab's lente,
+ * search and Ver retirados just before that reload; takeView reads and
+ * removes it on the next mount, so it is used once. The lens is checked
+ * against LENSES, since lensPredicate() reads an unknown id as arsenal.
+ * A storage failure means the default view, never an error.
+ */
+const VIEW_KEY = 'farmacia.view'
+
+function keepView(filter, showRetired) {
+	try {
+		window.sessionStorage.setItem(VIEW_KEY, JSON.stringify({ ...filter, showRetired }))
+	} catch {
+		// No storage: the reload still runs, on the default view.
+	}
+}
+
+function takeView() {
+	try {
+		const raw = window.sessionStorage.getItem(VIEW_KEY)
+		window.sessionStorage.removeItem(VIEW_KEY)
+		const { lens, query, showRetired } = JSON.parse(raw) ?? {}
+		if (LENSES.some((l) => l.id === lens) && typeof query === 'string' && typeof showRetired === 'boolean') {
+			return { filter: { lens, query }, showRetired }
+		}
+	} catch {
+		// Blocked or throwing storage, or a malformed value: the defaults.
+	}
+	return { filter: emptyFilter(), showRetired: false }
+}
+
 export default {
 	name: 'App',
 
@@ -188,14 +219,15 @@ export default {
 	},
 
 	data() {
+		const view = takeView()
 		return {
 			lenses: LENSES,
 			medications: readState('medications'),
 			retired: readState('retired'),
 			categories: readState('categories'),
 			abastece: readState('abastece'),
-			filter: emptyFilter(),
-			showRetired: false,
+			filter: view.filter,
+			showRetired: view.showRetired,
 			// The draft IS the selection: one sidebar, one record, no
 			// selectedId to keep in step with it.
 			draft: null,
@@ -684,11 +716,15 @@ export default {
 		 * an unguarded reload would eat the picked planilla mid-flow), the
 		 * export dialog (a Descargar click in flight), and the vocabulary
 		 * editor (unsent text).
+		 *
+		 * The reload keeps this tab's lente, search and Ver retirados for
+		 * the next mount (keepView); a failed save never blocks the sync.
 		 */
 		onWindowFocus() {
 			if (!this.blurred || this.draft !== null || this.importing || this.exporting || this.vocabulary !== null) {
 				return
 			}
+			keepView(this.filter, this.showRetired)
 			window.location.reload()
 		},
 	},
