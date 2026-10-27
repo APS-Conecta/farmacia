@@ -578,7 +578,7 @@
             "post": {
                 "operationId": "api-create",
                 "summary": "One medication, new — the same door the sidebar's Guardar goes through, so the two cannot disagree about what a record is.",
-                "description": "The payload keys are the browser's own (payload.js): codigo, producto, categoryId, the optional texts, and the three child lists — ges, restricciones, abastece (channel ids) — sent as request parameters (form-encoded or query string, the OCS-classic encodings; repeated `ges[]=…` keys carry the lists).",
+                "description": "The payload keys are the browser's own (payload.js): codigo, producto, categoryId, the optional texts, and the three child lists — ges, restricciones, abastece (channel ids) — sent as request parameters (form-encoded or query string, the OCS-classic encodings; repeated `ges[]=…` keys carry the lists).\n`trazador` and `riesgoColinergicoAm` read `true`, `1` or `sí` as yes and `false`, `0`, `no` or empty as no (case, accents and surrounding spaces aside); any other value is refused with 422.",
                 "tags": [
                     "api"
                 ],

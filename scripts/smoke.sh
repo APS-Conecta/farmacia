@@ -138,12 +138,30 @@ fi
 # would otherwise hit, and the throwaway keeps the row — instance-clean wipes
 # it, which is the trade for proving the write end to end.
 CODIGO="farmacia-smoke-$(date +%s)"
-code="$(web -H "$OCSH" -o /dev/null -w '%{http_code}' \
+# The flags go form-encoded as the string 'false' (#29): a bare cast stores them as true.
+created="$(web -H "$OCSH" -w ' HTTP %{http_code}' \
 	-d "codigo=$CODIGO" -d 'producto=Prueba de humo' -d "categoryId=$CATEGORY_ID" \
+	-d trazador=false -d riesgoColinergicoAm=false \
 	"$OCS?format=json")"
-expect "$code" '201' \
+expect "$created" ' HTTP 201' \
 	"POST creates over OCS with no CSRF token — only the header" \
-	"POST answered $code — the header-as-CSRF verdict or the write path broke"
+	"POST did not answer 201 — the header-as-CSRF verdict or the write path broke"
+expect "$created" '"trazador":false' \
+	"a form-encoded trazador=false is stored as false" \
+	"a form-encoded trazador=false was NOT stored as false"
+expect "$created" '"riesgoColinergicoAm":false' \
+	"a form-encoded riesgoColinergicoAm=false is stored as false" \
+	"a form-encoded riesgoColinergicoAm=false was NOT stored as false"
+
+refused="$(web -H "$OCSH" -w ' HTTP %{http_code}' \
+	-d "codigo=$CODIGO-flag" -d 'producto=Prueba de humo' -d "categoryId=$CATEGORY_ID" -d trazador=quizas \
+	"$OCS?format=json")"
+expect "$refused" ' HTTP 422' \
+	"a flag outside sí/no answers 422" \
+	"a flag outside sí/no does NOT answer 422"
+expect "$refused" 'El trazador debe ser' \
+	"the 422 names the field" \
+	"the 422 does not name the field"
 
 expect "$(web -H "$OCSH" "$OCS?format=json&search=prueba+de+humo")" "$CODIGO" \
 	"the created medication answers to ?search= (accent-folded, like the app's own search)" \
