@@ -84,3 +84,6 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - After Restaurar, a medicamento's actions bar starts again at «Retirar del arsenal», not at an armed confirmation.
 - Returning to the window keeps the lente, the search text and Ver retirados instead of
   resetting to Arsenal Farmacológico.
+- OCS `?search=` on `GET /api/v1/medicamentos` now matches words past character 64 of producto,
+  fármaco and the category label. Punctuation now compares literally, so `?search=hta dm` no
+  longer matches «Cardiovasculares (HTA · DM · DLP)».

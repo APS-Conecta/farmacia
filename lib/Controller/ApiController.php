@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace OCA\Farmacia\Controller;
 
 use APS\Common\Refusal;
+use APS\Common\Text;
 use OCA\Farmacia\AppInfo\Application;
 use OCA\Farmacia\Service\MedicationService;
 use OCA\Farmacia\Service\VocabularyService;
@@ -93,10 +94,11 @@ class ApiController extends OCSController {
 	 * question that was understood and happens to have nothing to say.
 	 *
 	 * ?search= matches what the app's own search matches (filters.js's one
-	 * definition): producto, fármaco (DCI) and the category label,
-	 * accent-insensitively — folded here with slugFor, the app's one PHP
-	 * fold. The código is the record's identity, not its description; a
-	 * consumer needing it has the whole list in one document to find it in.
+	 * definition): producto, fármaco (DCI) and the category label, ignoring
+	 * accents and case, anywhere in the field whatever its length — folded
+	 * with aps-common's Text::fold, the PHP twin of filters.js's fold. The
+	 * código is the record's identity, not its description; a consumer
+	 * needing it has the whole list in one document to find it in.
 	 *
 	 * @param ?string $search free text, matched against producto, fármaco and the category label
 	 * @param ?string $categoria a category slug, as the vocabulary is addressed everywhere
@@ -257,20 +259,15 @@ class ApiController extends OCSController {
 	 * @return list<array<string, mixed>>
 	 */
 	private function narrow(array $rows, ?string $search, ?int $categoryId, ?string $gestation, bool $renal, array $labels): array {
-		// A punctuation-only search folds to nothing, which is not a
-		// question anyone can answer — treating it as a match-everything
-		// needle would make `?search=??` the whole arsenal.
-		$needle = $search === null ? null : VocabularyService::slugFor($search);
-		if ($needle === '') {
-			$needle = null;
-		}
+		// A search with no letter or digit is not a question, so it narrows nothing.
+		$needle = $search !== null && preg_match('/[\p{L}\p{N}]/u', $search) === 1 ? Text::fold($search) : null;
 
 		return array_values(array_filter($rows, function (array $row) use ($needle, $categoryId, $gestation, $renal, $labels): bool {
 			if ($needle !== null) {
 				$haystacks = [
-					VocabularyService::slugFor((string)($row['producto'] ?? '')),
-					VocabularyService::slugFor((string)($row['farmaco'] ?? '')),
-					VocabularyService::slugFor((string)($labels[(int)($row['categoryId'] ?? 0)] ?? '')),
+					Text::fold((string)($row['producto'] ?? '')),
+					Text::fold((string)($row['farmaco'] ?? '')),
+					Text::fold((string)($labels[(int)($row['categoryId'] ?? 0)] ?? '')),
 				];
 				if (!self::contains($haystacks, $needle)) {
 					return false;
