@@ -76,3 +76,6 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - A review decision on a row whose stored código changed no longer creates a duplicate medication;
   the apply refuses the row.
 - `occ farmacia:import` refuses an `--actor` over 64 characters with a sentence instead of a database error.
+- The GES, restricción and canal de abastece reads send at most 1000 medication ids per query: an
+  arsenal past 1000 medications no longer logs a core error on every upload, page load and export,
+  and no longer fails on Oracle.
