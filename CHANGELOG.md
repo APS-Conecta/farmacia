@@ -73,3 +73,6 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - The export dialog's hint says «la planilla», not «el planilla».
 - A GES number above 2147483647 is refused with a sentence (Guardar, OCS, planilla staging)
   instead of a 500.
+- OCS `?search=` on `GET /api/v1/medicamentos` now matches words past character 64 of producto,
+  fármaco and the category label. Punctuation now compares literally, so `?search=hta dm` no
+  longer matches «Cardiovasculares (HTA · DM · DLP)».
