@@ -72,7 +72,7 @@
 			     Territory's NcNoteCard shape. -->
 			<NcNoteCard v-if="selectedIsRetired" type="warning">
 				Este registro está retirado: no aparece en el arsenal.
-				<NcButton variant="primary" @click="restore">
+				<NcButton variant="primary" :disabled="writing" @click="restore">
 					Restaurar
 				</NcButton>
 			</NcNoteCard>
@@ -81,7 +81,7 @@
 				:draft="draft"
 				:categories="categories"
 				:abastece="abastece"
-				:saving="saving"
+				:saving="writing"
 				:error="error"
 				:retired="selectedIsRetired"
 				@save="save"
@@ -231,7 +231,8 @@ export default {
 			// The draft IS the selection: one sidebar, one record, no
 			// selectedId to keep in step with it.
 			draft: null,
-			saving: false,
+			// One write at a time; the sidebar stays on its record while it flies.
+			writing: false,
 			error: '',
 			// The import review: one flag for the dialog, one document for
 			// the review half of it (null while picking), one list for the
@@ -241,6 +242,8 @@ export default {
 			importBatches: [],
 			importBusy: false,
 			importError: '',
+			// An undo landed: the arsenal changed under the dialog, so closing it reloads.
+			importReverted: false,
 			// The export's said-before screen: one flag, nothing to hold.
 			exporting: false,
 			// The vocabulary editor: 'categories' | 'abastece' | null.
@@ -317,12 +320,18 @@ export default {
 		},
 
 		newDraft() {
+			if (this.writing) {
+				return
+			}
 			this.draft = blankDraft()
 			this.error = ''
 		},
 
 		/** A row is in exactly one of the two sets; the draft opens from either. */
 		openDraft(id) {
+			if (this.writing) {
+				return
+			}
 			const row = this.medications.find((m) => m.id === id)
 				?? this.retired.find((m) => m.id === id)
 
@@ -334,6 +343,9 @@ export default {
 		},
 
 		closeDraft() {
+			if (this.writing) {
+				return
+			}
 			this.draft = null
 			this.error = ''
 		},
@@ -345,72 +357,69 @@ export default {
 			this.retired = sets.retired
 		},
 
-		async save() {
-			this.saving = true
+		/**
+		 * Guardar, Retirar and Restaurar: one write at a time. While it flies,
+		 * openDraft, newDraft and closeDraft refuse, so the answer lands on the
+		 * record it was sent for. Unlike the import dialog's never-disabled
+		 * Cerrar (decideRow), the sidebar is held: a refused Guardar must stay
+		 * on the form that holds its typed edits.
+		 */
+		async writeMedication({ request, label, fallback }) {
+			if (this.writing) {
+				return
+			}
+			this.writing = true
 			this.error = ''
 
 			try {
-				const isNew = this.draft.id === null
-				const data = await this.runRequest({
-					request: () => isNew
-						? axios.post(generateUrl('/apps/farmacia/medications'), payload(this.draft))
-						: axios.put(
-							generateUrl(`/apps/farmacia/medications/${this.draft.id}`),
-							payload(this.draft),
-						),
-					label: 'could not save the medication',
-					onError: 'error',
-					fallback: 'No se pudo guardar. Revise la conexión e inténtelo de nuevo.',
-				})
+				const data = await this.runRequest({ request, label, onError: 'error', fallback })
 
 				if (data !== null) {
 					this.applyMerge(data)
 					// The draft rebuilds from the server's answer, so what the form
 					// shows after Guardar is what was stored — deduped GES list,
 					// trimmed texts, stamped updated_at — not what was typed.
+					// After Retirar the sidebar stays open on the retired record:
+					// the person sees what retiring did, and Restaurar is right there.
 					this.draft = draftFrom(data)
 				}
 			} finally {
-				this.saving = false
+				this.writing = false
 			}
 		},
 
-		async retire() {
-			this.error = ''
+		save() {
+			const isNew = this.draft.id === null
+			this.writeMedication({
+				request: () => isNew
+					? axios.post(generateUrl('/apps/farmacia/medications'), payload(this.draft))
+					: axios.put(
+						generateUrl(`/apps/farmacia/medications/${this.draft.id}`),
+						payload(this.draft),
+					),
+				label: 'could not save the medication',
+				fallback: 'No se pudo guardar. Revise la conexión e inténtelo de nuevo.',
+			})
+		},
 
-			const data = await this.runRequest({
+		retire() {
+			this.writeMedication({
 				request: () => axios.delete(
 					generateUrl(`/apps/farmacia/medications/${this.draft.id}`),
 				),
 				label: 'could not retire the medication',
-				onError: 'error',
 				fallback: 'No se pudo retirar. Revise la conexión e inténtelo de nuevo.',
 			})
-
-			if (data !== null) {
-				// The sidebar stays open on the retired record: the person sees
-				// what retiring did, and Restaurar is right there.
-				this.applyMerge(data)
-				this.draft = draftFrom(data)
-			}
 		},
 
-		async restore() {
-			this.error = ''
-
-			const data = await this.runRequest({
+		restore() {
+			this.writeMedication({
 				request: () => axios.post(
 					generateUrl(`/apps/farmacia/medications/${this.draft.id}/restore`),
 				),
 				label: 'could not restore the medication',
-				onError: 'error',
 				fallback: 'No se pudo restaurar. Revise la conexión e inténtelo de nuevo.',
 			})
-
-			if (data !== null) {
-				this.applyMerge(data)
-				this.draft = draftFrom(data)
-			}
 		},
 
 		openImport() {
@@ -424,6 +433,9 @@ export default {
 			this.importing = false
 			this.importDocument = null
 			this.importError = ''
+			if (this.importReverted) {
+				window.location.reload()
+			}
 		},
 
 		/** The recent runs — a batch staged before the page closed reopens. */
@@ -583,7 +595,12 @@ export default {
 			}
 		},
 
-		/** The undo moved the arsenal like an apply, so it reloads like one. */
+		/**
+		 * The undo's answer is a report (what it put back, what it left as it
+		 * was), so the dialog stays open on the refreshed list, where the
+		 * revert's row says it. The arsenal changed, so closing the dialog
+		 * reloads; an answer that lands after Cerrar reloads at once.
+		 */
 		async revertBatch(id) {
 			this.importBusy = true
 			this.importError = ''
@@ -597,7 +614,12 @@ export default {
 				})
 
 				if (data !== null) {
-					window.location.reload()
+					this.importReverted = true
+					if (this.importing) {
+						await this.loadBatches()
+					} else {
+						window.location.reload()
+					}
 				}
 			} finally {
 				this.importBusy = false

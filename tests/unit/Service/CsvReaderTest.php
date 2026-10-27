@@ -126,6 +126,20 @@ final class CsvReaderTest extends TestCase {
 		self::assertSame(5, $rows[1]['line'], 'a blank record still occupies the row the spreadsheet shows');
 	}
 
+	public function testOnlyACellTheRecordCarriesCanClearItsField(): void {
+		$heading = strtok((string)file_get_contents(self::FIXTURE), "\n");
+		$short = 'F-001;Paracetamol;paracetamol;500;Comprimido;Analgésicos;No;;;;;;;;sin observaciones';
+		$full = 'F-002;Enalapril;enalapril;10;Comprimido;Cardiovasculares;No;;;;;;;;;;;';
+
+		$rows = $this->reader->read($heading . "\n" . $short . "\n" . $full . "\n");
+
+		self::assertSame('sin observaciones', $rows[0]['cells']['observaciones']);
+		foreach (['riesgoColinergicoAm', 'fdaEmbarazo', 'ajusteRenal'] as $key) {
+			self::assertArrayNotHasKey($key, $rows[0]['cells'], 'a cell the line ends before is a key the row does not have, not a clear');
+			self::assertSame('', $rows[1]['cells'][$key], 'an empty cell the line carries is still a clear');
+		}
+	}
+
 	public function testAFileWithoutACodigoColumnIsRefusedNamingTheColumns(): void {
 		$this->expectException(InvalidImportException::class);
 		$this->expectExceptionMessageMatches('/Código/');
