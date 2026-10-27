@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BATCH_STATE_LABELS, DISPOSITION_LABELS, counters, decisionFor, decisionReady, pendingRows } from '../src/import.js'
+import { BATCH_STATE_LABELS, DISPOSITION_LABELS, counters, decisionFor, decisionReady, pendingRows, revertCounters } from '../src/import.js'
 
 const BATCH = {
 	created: 5,
@@ -22,6 +22,25 @@ describe('counters', () => {
 
 	it('is an empty line when the planilla counts nothing', () => {
 		expect(counters({ created: 0, updated: 0, unchanged: 0, skipped: 0, duplicates: 0, unsupported: 0 })).toBe('')
+	})
+})
+
+describe('revertCounters', () => {
+	it('says how many records the undo put back and how many it left as they were', () => {
+		expect(revertCounters({ updated: 37, skipped: 3 }))
+			.toBe('37 deshechos · 3 sin deshacer: cambiaron después del lote o su categoría o canal ya no existe')
+	})
+
+	it('drops the left-alone count when the undo reached every record', () => {
+		expect(revertCounters({ updated: 37, skipped: 0 })).toBe('37 deshechos')
+	})
+
+	it('keeps the put-back count when the undo reached none', () => {
+		expect(revertCounters({ updated: 0, skipped: 3 })).toMatch(/^0 deshechos · /)
+	})
+
+	it('is never an empty line', () => {
+		expect(revertCounters({ updated: 0, skipped: 0 })).toBe('0 deshechos')
 	})
 })
 

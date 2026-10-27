@@ -8,6 +8,8 @@ namespace OCA\Farmacia\Tests\Integration;
 
 use OCA\Farmacia\Db\Channel;
 use OCA\Farmacia\Db\ChannelMapper;
+use OCA\Farmacia\Db\ImportBatch;
+use OCA\Farmacia\Db\ImportBatchMapper;
 use OCA\Farmacia\Db\MedicationMapper;
 use OCA\Farmacia\Exception\InvalidImportException;
 use OCA\Farmacia\Service\ApplyService;
@@ -111,6 +113,38 @@ final class ApplyRevertTest extends IntegrationTestCase {
 		} catch (InvalidImportException $e) {
 			self::assertSame('4 fila(s) esperan una decisión de vocabulario antes de aplicar.', $e->getMessage());
 		}
+	}
+
+	public function testApplyRefusesARowWhoseStoredCodigoChangedBeforeTheDecision(): void {
+		$id = $this->medication('AR-RENAME');
+		$doc = $this->stage("Código;Producto;Categoría\nAR-RENAME;Producto de prueba;Categoría inexistente\n", 'renombrado.csv');
+		$batchId = (int)$doc['batch']['id'];
+		$row = $doc['rows'][0];
+		self::assertSame('update', $row['disposition']);
+		self::assertSame('unresolved-vocabulary', $row['status']);
+
+		// A colleague corrects the código in the sidebar while the lote waits for its review.
+		$this->medications->update($id, ['codigo' => 'AR-RENAMED']);
+
+		$decided = $this->import->decide((int)$row['id'], ['categoryId' => $this->categoryIdBySlug('otros')]);
+		self::assertSame('update', $decided['disposition'], 'a create would land a second medication under the old código');
+
+		try {
+			$this->apply->apply($batchId);
+			$this->registerByCodigo('AR-RENAME');
+			self::fail('the apply must refuse an update whose record no longer resolves');
+		} catch (InvalidImportException $e) {
+			self::assertSame('La línea 2 actualizaría el código «AR-RENAME», que ya no está en el arsenal: importe la planilla de nuevo.', $e->getMessage());
+		}
+
+		try {
+			Server::get(MedicationMapper::class)->findByCodigo('AR-RENAME');
+			$this->registerByCodigo('AR-RENAME');
+			self::fail('no medication may carry the old código');
+		} catch (DoesNotExistException) {
+			// Nothing landed.
+		}
+		self::assertSame(ImportBatch::STATE_STAGED, Server::get(ImportBatchMapper::class)->find($batchId)->getState());
 	}
 
 	public function testApplyThenRevertRestoresTheArsenal(): void {
@@ -225,7 +259,7 @@ final class ApplyRevertTest extends IntegrationTestCase {
 		$doc = $this->stage("Código;FDA embarazo\nAR-009;C\nAR-010;C\n", 'estrecha.csv');
 		$rows = array_column($doc['rows'], null, 'codigo');
 		self::assertSame(['unsupported', 'invalid'], [$rows['AR-010']['disposition'], $rows['AR-010']['status']], 'a new código the apply cannot create must stage invalid, or it refuses the whole lote');
-		self::assertStringContainsString('no trae columna Producto', (string)$rows['AR-010']['notes']);
+		self::assertStringContainsString('la fila no trae producto', (string)$rows['AR-010']['notes']);
 
 		$applied = $this->apply->apply((int)$doc['batch']['id']);
 

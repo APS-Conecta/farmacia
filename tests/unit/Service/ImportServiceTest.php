@@ -222,6 +222,28 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame('unchanged', $doc['rows'][0]['disposition'], 'a column the file does not carry is a field the apply does not touch');
 	}
 
+	public function testALineShorterThanItsHeadingKeepsTheStoredClinicalSafetyFields(): void {
+		$this->wire();
+		$stored = self::medication('F-001');
+		$stored->setRiesgoColinergicoAm(true);
+		$stored->setFdaEmbarazo('D');
+		$stored->setAjusteRenal('Evitar si TFG < 30');
+		$this->wireStored($stored);
+		// The real reader: the case is the path from a short line to the judgement.
+		$service = new ImportService(
+			new CsvReader(), $this->categories, $this->channels, $this->medications,
+			$this->ges, $this->restrictions, $this->abastece, $this->batches, $this->rows,
+		);
+
+		$doc = $service->stage(
+			"Código;Producto;Riesgo colinérgico AM;FDA embarazo;Ajuste renal\nF-001;Producto de prueba",
+			'planilla.csv',
+			null,
+		);
+
+		self::assertSame('unchanged', $doc['rows'][0]['disposition'], 'a cell the line never reached is not a clear');
+	}
+
 	public function testARetiredRecordIsSkippedWhateverTheRowSays(): void {
 		$this->wire();
 		$this->wireStored(self::medication('F-001', retired: true));
@@ -349,7 +371,7 @@ final class ImportServiceTest extends TestCase {
 		$row = $doc['rows'][0];
 		self::assertSame('unresolved-vocabulary', $row['status']);
 		self::assertNull($row['payload']['pending']['categoria']);
-		self::assertStringContainsString('el archivo no trae columna Categoría', (string)$row['notes']);
+		self::assertStringContainsString('la fila es nueva y no trae Categoría', (string)$row['notes']);
 	}
 
 	public function testANarrowPlanillaStagesANewCodigoInvalidAndStillUpdatesTheStoredOne(): void {
@@ -365,7 +387,7 @@ final class ImportServiceTest extends TestCase {
 
 		[$new, $stored, $blank] = $doc['rows'];
 		self::assertSame(['unsupported', 'invalid'], [$new['disposition'], $new['status']], 'no review decision can supply a producto');
-		self::assertStringContainsString('el archivo no trae columna Producto', (string)$new['notes']);
+		self::assertStringContainsString('la fila no trae producto', (string)$new['notes']);
 		self::assertSame(['update', 'staged'], [$stored['disposition'], $stored['status']]);
 		self::assertSame('la fila no trae código', $blank['notes']);
 		self::assertSame([0, 1, 2], [$doc['batch']['created'], $doc['batch']['updated'], $doc['batch']['unsupported']]);
@@ -406,6 +428,45 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame('create', $updated['disposition']);
 		self::assertSame(2, $updated['payload']['categoryId']);
 		self::assertSame([], $updated['payload']['pending']);
+	}
+
+	/** @return array<string, array{string}> the dispositions a row judged against a stored record carries */
+	public static function judgedAgainstAStoredRecord(): array {
+		return ['update' => ['update'], 'unchanged' => ['unchanged']];
+	}
+
+	/** @dataProvider judgedAgainstAStoredRecord */
+	public function testDecideKeepsARowJudgedAgainstAVanishedRecordAnUpdate(string $prior): void {
+		$this->wire();
+		// The stored código was edited after the upload: it no longer resolves.
+		$this->medications->method('findByCodigo')->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('no'));
+		$row = $this->undecidedRow(['categoria' => 'Cardiovasculres']);
+		$row->setDisposition($prior);
+		$this->rows->method('find')->willReturn($row);
+		$this->batches->method('find')->willReturn($this->stagedBatch());
+		$this->categories->method('find')->willReturn(self::category(2, 'salud_mental_incluye_tto_oh', 'Salud mental (incluye tto OH)'));
+
+		$updated = $this->service->decide((int)$row->getId(), ['categoryId' => 2]);
+
+		self::assertSame('update', $updated['disposition'], 'a create would land a second medication under the old código');
+	}
+
+	public function testDecideReDerivesACreateRowAgainstAHandMadeRecord(): void {
+		$this->wire();
+		// Someone created F-009 by hand after the upload: the row now meets it.
+		$stored = new Medication();
+		$stored->setCodigo('F-009');
+		$stored->setProducto('Otro nombre');
+		$stored->setRetired(false);
+		$this->medications->method('findByCodigo')->willReturn($stored);
+		$row = $this->undecidedRow(['categoria' => null]);
+		$this->rows->method('find')->willReturn($row);
+		$this->batches->method('find')->willReturn($this->stagedBatch());
+		$this->categories->method('find')->willReturn(self::category(2, 'salud_mental_incluye_tto_oh', 'Salud mental (incluye tto OH)'));
+
+		$updated = $this->service->decide((int)$row->getId(), ['categoryId' => 2]);
+
+		self::assertSame('update', $updated['disposition']);
 	}
 
 	public function testDecideCanLeaveAChannelUnassigned(): void {
@@ -492,6 +553,35 @@ final class ImportServiceTest extends TestCase {
 		} catch (InvalidImportException $e) {
 			self::assertSame('El archivo no tiene filas debajo del encabezado.', $e->getMessage());
 		}
+	}
+
+	public function testAnActorOverSixtyFourCharactersIsRefusedAndNoLoteIsInserted(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		$this->csv->method('read')->willReturn([self::readRow(2, self::fullCells('F-009'))]);
+		$this->batches->expects(self::never())->method('insert');
+
+		try {
+			$this->service->stage('csv', 'planilla.csv', str_repeat('a', 65));
+			self::fail('an actor wider than the lote column must be refused');
+		} catch (InvalidImportException $e) {
+			self::assertSame('El actor no puede pasar de 64 caracteres.', $e->getMessage());
+		}
+	}
+
+	public function testASixtyFourCharacterAccentedActorStagesAsGiven(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		$this->csv->method('read')->willReturn([self::readRow(2, self::fullCells('F-009'))]);
+		$actor = str_repeat('María ', 10) . 'José';
+		self::assertSame(64, mb_strlen($actor));
+		self::assertSame(75, strlen($actor), 'the accents make it wider in bytes than in characters');
+
+		$doc = $this->service->stage('csv', 'planilla.csv', $actor);
+
+		self::assertSame($actor, $doc['batch']['actor']);
 	}
 
 	/** A staged batch, as the review reopens it. */

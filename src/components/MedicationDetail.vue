@@ -35,7 +35,7 @@
 						Se retira del arsenal y de la lista. No se borra: conserva sus
 						datos y se puede restaurar.
 					</p>
-					<NcButton variant="error" @click="$emit('retire')">
+					<NcButton variant="error" :disabled="saving" @click="$emit('retire')">
 						Retirar
 					</NcButton>
 					<NcButton variant="tertiary" @click="confirmingRetire = false">
@@ -267,6 +267,14 @@ export default {
 			set(letter) {
 				this.draft.fdaEmbarazo = letter ?? ''
 			},
+		},
+	},
+
+	watch: {
+		// Retire and restore keep the id, so the keyed sidebar patches this form
+		// instead of remounting it (L2-16): a change of state disarms Retirar.
+		retired() {
+			this.confirmingRetire = false
 		},
 	},
 

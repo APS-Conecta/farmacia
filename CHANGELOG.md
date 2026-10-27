@@ -62,6 +62,8 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Undoing a lote keeps the import dialog open, and its row says how many records it put back and
+  how many it left as they were.
 - Import decisions validate channel id types server-side.
 - Enter adds a GES number or a restriction from the adder field; vocabulary buttons carry
   aria-labels.
@@ -73,6 +75,15 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - The export dialog's hint says «la planilla», not «el planilla».
 - A GES number above 2147483647 is refused with a sentence (Guardar, OCS, planilla staging)
   instead of a 500.
+- A review decision on a row whose stored código changed no longer creates a duplicate medication;
+  the apply refuses the row.
+- `occ farmacia:import` refuses an `--actor` over 64 characters with a sentence instead of a database error.
+- The GES, restricción and canal de abastece reads send at most 1000 medication ids per query: an
+  arsenal past 1000 medications no longer logs a core error on every upload, page load and export,
+  and no longer fails on Oracle.
+- After Restaurar, a medicamento's actions bar starts again at «Retirar del arsenal», not at an armed confirmation.
+- Returning to the window keeps the lente, the search text and Ver retirados instead of
+  resetting to Arsenal Farmacológico.
 - OCS `?search=` on `GET /api/v1/medicamentos` now matches words past character 64 of producto,
   fármaco and the category label. Punctuation now compares literally, so `?search=hta dm` no
   longer matches «Cardiovasculares (HTA · DM · DLP)».
