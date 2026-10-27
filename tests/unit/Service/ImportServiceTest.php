@@ -533,6 +533,35 @@ final class ImportServiceTest extends TestCase {
 		}
 	}
 
+	public function testAnActorOverSixtyFourCharactersIsRefusedAndNoLoteIsInserted(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		$this->csv->method('read')->willReturn([self::readRow(2, self::fullCells('F-009'))]);
+		$this->batches->expects(self::never())->method('insert');
+
+		try {
+			$this->service->stage('csv', 'planilla.csv', str_repeat('a', 65));
+			self::fail('an actor wider than the lote column must be refused');
+		} catch (InvalidImportException $e) {
+			self::assertSame('El actor no puede pasar de 64 caracteres.', $e->getMessage());
+		}
+	}
+
+	public function testASixtyFourCharacterAccentedActorStagesAsGiven(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		$this->csv->method('read')->willReturn([self::readRow(2, self::fullCells('F-009'))]);
+		$actor = str_repeat('María ', 10) . 'José';
+		self::assertSame(64, mb_strlen($actor));
+		self::assertSame(75, strlen($actor), 'the accents make it wider in bytes than in characters');
+
+		$doc = $this->service->stage('csv', 'planilla.csv', $actor);
+
+		self::assertSame($actor, $doc['batch']['actor']);
+	}
+
 	/** A staged batch, as the review reopens it. */
 	private function stagedBatch(): ImportBatch {
 		$batch = new ImportBatch();

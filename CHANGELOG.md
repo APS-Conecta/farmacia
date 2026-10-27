@@ -75,3 +75,4 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
   instead of a 500.
 - A review decision on a row whose stored código changed no longer creates a duplicate medication;
   the apply refuses the row.
+- `occ farmacia:import` refuses an `--actor` over 64 characters with a sentence instead of a database error.
