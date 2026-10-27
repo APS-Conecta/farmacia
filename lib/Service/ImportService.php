@@ -348,6 +348,10 @@ class ImportService {
 			if ($producto === '') {
 				$problems[] = 'la fila no trae producto';
 			}
+		} elseif ($codigo !== '' && $stored === null) {
+			// A new record cannot be created without a producto, and no review
+			// decision supplies a cell: refused here, where the stage predicts the apply.
+			$problems[] = 'la fila es nueva y el archivo no trae columna Producto';
 		}
 
 		// The sí/no cells, folded with the repo's own rule so «Sí», «SI» and
@@ -371,7 +375,7 @@ class ImportService {
 
 		if (array_key_exists('ges', $payload)) {
 			foreach ($payload['ges'] as $number) {
-				if (!ctype_digit((string)$number) || (int)$number < 1) {
+				if (!ctype_digit((string)$number) || (int)$number < 1 || (int)$number > MedicationService::GES_NUMBER_MAX) {
 					$problems[] = sprintf('la celda GES trae «%s»: un número de problema GES', (string)$number);
 				}
 			}

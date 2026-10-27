@@ -13,8 +13,11 @@ use OCA\Farmacia\Service\VocabularyService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\IRequest;
+use OCP\IUser;
+use OCP\IUserSession;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 /**
  * The controller's own decisions: which narrowings make sense, and which
@@ -27,6 +30,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class ApiControllerTest extends TestCase {
 	private MedicationService&MockObject $medications;
+	private LoggerInterface&MockObject $logger;
 	private ApiController $controller;
 
 	/** Two rows and their two categories: the minimum a narrowing can disagree about. */
@@ -50,7 +54,35 @@ final class ApiControllerTest extends TestCase {
 		$vocabulary = $this->createMock(VocabularyService::class);
 		$vocabulary->method('categories')->willReturn(self::CATEGORIES);
 
-		$this->controller = new ApiController($request, $this->medications, $vocabulary);
+		$user = $this->createStub(IUser::class);
+		$user->method('getUID')->willReturn('tester');
+		$session = $this->createStub(IUserSession::class);
+		$session->method('getUser')->willReturn($user);
+		$this->logger = $this->createMock(LoggerInterface::class);
+
+		$this->controller = new ApiController($request, $this->medications, $vocabulary, $session, $this->logger);
+	}
+
+	/** @return array<string, array{string, string, string, list<int>, int}> action, route, service method, route arguments, status */
+	public static function ocsCallProvider(): array {
+		return [
+			'create' => ['API_CREATE_MEDICATION', 'create', 'create', [], Http::STATUS_CREATED],
+			'show' => ['API_READ_MEDICATION', 'show', 'read', [7], Http::STATUS_OK],
+			'update' => ['API_UPDATE_MEDICATION', 'update', 'update', [7], Http::STATUS_OK],
+		];
+	}
+
+	/** @dataProvider ocsCallProvider */
+	public function testEachOcsCallLeavesOneAuditWarning(string $action, string $route, string $serviceMethod, array $args, int $status): void {
+		$this->medications->method($serviceMethod)->willReturn(['id' => 7, 'codigo' => 'X1']);
+		$this->logger->expects(self::once())->method('warning')->with(self::matchesRegularExpression(
+			'/^HIPAA_AUDIT: ' . $action . ' by actor=tester on medication_id=7 codigo=X1 from ip=\S* at \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$/',
+		));
+
+		$response = $this->controller->{$route}(...$args);
+
+		self::assertSame($status, $response->getStatus());
+		self::assertSame(['id' => 7, 'codigo' => 'X1'], $response->getData());
 	}
 
 	/** @return list<array<string, mixed>> the rows the envelope carried */

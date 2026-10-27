@@ -270,6 +270,28 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame(1, $doc['batch']['unsupported']);
 	}
 
+	public function testAGesCellBeyondTheColumnStagesInvalidAndTheRestStillStage(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		$cells = self::fullCells('F-009');
+		$cells['ges'] = ['56912345678']; // a pasted phone number
+		$this->csv->method('read')->willReturn([
+			self::readRow(2, $cells),
+			self::readRow(3, self::fullCells('F-010')),
+		]);
+
+		$doc = $this->service->stage('csv', 'planilla.csv', null);
+
+		self::assertSame('invalid', $doc['rows'][0]['status']);
+		self::assertSame('unsupported', $doc['rows'][0]['disposition']);
+		self::assertStringContainsString('la celda GES trae «56912345678»: un número de problema GES', (string)$doc['rows'][0]['notes']);
+		self::assertSame('staged', $doc['rows'][1]['status']);
+		self::assertSame('create', $doc['rows'][1]['disposition']);
+		self::assertSame(1, $doc['batch']['unsupported']);
+		self::assertSame(1, $doc['batch']['created']);
+	}
+
 	public function testAnOverLongCodigoIsStoredCutToTheColumnWidthAndStagesInvalid(): void {
 		$this->wire();
 		$this->medications->method('findAll')->willReturn([]);
@@ -328,6 +350,25 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame('unresolved-vocabulary', $row['status']);
 		self::assertNull($row['payload']['pending']['categoria']);
 		self::assertStringContainsString('el archivo no trae columna Categoría', (string)$row['notes']);
+	}
+
+	public function testANarrowPlanillaStagesANewCodigoInvalidAndStillUpdatesTheStoredOne(): void {
+		$this->wire();
+		$this->wireStored(self::medication('F-001'));
+		$this->csv->method('read')->willReturn([
+			self::readRow(2, ['codigo' => 'NEW-1', 'fdaEmbarazo' => 'C']),
+			self::readRow(3, ['codigo' => 'F-001', 'fdaEmbarazo' => 'C']),
+			self::readRow(4, ['fdaEmbarazo' => 'C']),
+		]);
+
+		$doc = $this->service->stage('csv', 'planilla.csv', null);
+
+		[$new, $stored, $blank] = $doc['rows'];
+		self::assertSame(['unsupported', 'invalid'], [$new['disposition'], $new['status']], 'no review decision can supply a producto');
+		self::assertStringContainsString('el archivo no trae columna Producto', (string)$new['notes']);
+		self::assertSame(['update', 'staged'], [$stored['disposition'], $stored['status']]);
+		self::assertSame('la fila no trae código', $blank['notes']);
+		self::assertSame([0, 1, 2], [$doc['batch']['created'], $doc['batch']['updated'], $doc['batch']['unsupported']]);
 	}
 
 	public function testAnUncleanRestrictionSplitIsFlaggedNotJudgedAnUpdate(): void {
