@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Tests\Unit\Controller;
 
+use APS\Common\Text;
 use OCA\Farmacia\Controller\ApiController;
 use OCA\Farmacia\Exception\InvalidMedicationException;
 use OCA\Farmacia\Service\MedicationService;
@@ -13,8 +14,11 @@ use OCA\Farmacia\Service\VocabularyService;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Http;
 use OCP\IRequest;
+use OCP\IUser;
+use OCP\IUserSession;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 /**
  * The controller's own decisions: which narrowings make sense, and which
@@ -22,12 +26,14 @@ use PHPUnit\Framework\TestCase;
  * restated for the surface whose refusals a consumer reads. The narrowing
  * fold itself is pinned here too: the private methods are exercised through
  * index(), with the service mocked to two rows and the vocabulary mocked to
- * the two categories they sit in (slugFor stays real — it is static, pure,
- * and the app's one fold).
+ * the two categories they sit in (Text::fold stays real — it is static and
+ * pure).
  */
 final class ApiControllerTest extends TestCase {
 	private MedicationService&MockObject $medications;
+	private LoggerInterface&MockObject $logger;
 	private ApiController $controller;
+	private array $rows = self::ROWS;
 
 	/** Two rows and their two categories: the minimum a narrowing can disagree about. */
 	private const ROWS = [
@@ -45,12 +51,40 @@ final class ApiControllerTest extends TestCase {
 		$request->method('getParams')->willReturn([]);
 
 		$this->medications = $this->createMock(MedicationService::class);
-		$this->medications->method('listAll')->willReturn(self::ROWS);
+		$this->medications->method('listAll')->willReturnCallback(fn (): array => $this->rows);
 
 		$vocabulary = $this->createMock(VocabularyService::class);
 		$vocabulary->method('categories')->willReturn(self::CATEGORIES);
 
-		$this->controller = new ApiController($request, $this->medications, $vocabulary);
+		$user = $this->createStub(IUser::class);
+		$user->method('getUID')->willReturn('tester');
+		$session = $this->createStub(IUserSession::class);
+		$session->method('getUser')->willReturn($user);
+		$this->logger = $this->createMock(LoggerInterface::class);
+
+		$this->controller = new ApiController($request, $this->medications, $vocabulary, $session, $this->logger);
+	}
+
+	/** @return array<string, array{string, string, string, list<int>, int}> action, route, service method, route arguments, status */
+	public static function ocsCallProvider(): array {
+		return [
+			'create' => ['API_CREATE_MEDICATION', 'create', 'create', [], Http::STATUS_CREATED],
+			'show' => ['API_READ_MEDICATION', 'show', 'read', [7], Http::STATUS_OK],
+			'update' => ['API_UPDATE_MEDICATION', 'update', 'update', [7], Http::STATUS_OK],
+		];
+	}
+
+	/** @dataProvider ocsCallProvider */
+	public function testEachOcsCallLeavesOneAuditWarning(string $action, string $route, string $serviceMethod, array $args, int $status): void {
+		$this->medications->method($serviceMethod)->willReturn(['id' => 7, 'codigo' => 'X1']);
+		$this->logger->expects(self::once())->method('warning')->with(self::matchesRegularExpression(
+			'/^HIPAA_AUDIT: ' . $action . ' by actor=tester on medication_id=7 codigo=X1 from ip=\S* at \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$/',
+		));
+
+		$response = $this->controller->{$route}(...$args);
+
+		self::assertSame($status, $response->getStatus());
+		self::assertSame(['id' => 7, 'codigo' => 'X1'], $response->getData());
 	}
 
 	/** @return list<array<string, mixed>> the rows the envelope carried */
@@ -70,7 +104,7 @@ final class ApiControllerTest extends TestCase {
 	}
 
 	public function testAPunctuationOnlySearchIsNotAQuestion(): void {
-		// slugFor('??') folds to '' — a needle that would match everything.
+		// '??' has no letter or digit, so it is not a question.
 		self::assertSame(self::ROWS, $this->answered($this->controller->index('??', null, null, null)));
 	}
 
@@ -98,6 +132,22 @@ final class ApiControllerTest extends TestCase {
 		// The category label is the third field the app's own search
 		// matches (filters.js's one definition, mirrored).
 		self::assertSame([self::ROWS[1]], $this->answered($this->controller->index('cardiovascular', null, null, null)));
+	}
+
+	public function testSearchFindsAWordPastTheSlugCut(): void {
+		$this->rows = [
+			['id' => 3, 'producto' => 'Clorfenamina maleato 2 mg/5 ml jarabe frasco 120 ml uso pediátrico', 'farmaco' => 'clorfenamina', 'categoryId' => 7],
+			['id' => 4, 'producto' => 'Betametasona dipropionato 0,05% + clotrimazol 1% + gentamicina 0,1% crema tubo 15 g', 'farmaco' => 'betametasona', 'categoryId' => 7],
+			['id' => 5, 'producto' => 'Antigripal jarabe 120 ml', 'farmaco' => 'clorfenamina maleato + paracetamol + fenilefrina clorhidrato + dextrometorfano bromhidrato', 'categoryId' => 7],
+		];
+		[$a, $b, $c] = $this->rows;
+		self::assertGreaterThan(Text::SLUG_LENGTH, mb_strlen($a['producto']));
+		self::assertGreaterThan(Text::SLUG_LENGTH, mb_strlen($b['producto']));
+		self::assertGreaterThan(Text::SLUG_LENGTH, mb_strlen($c['farmaco']));
+
+		self::assertSame([$a], $this->answered($this->controller->index('pediátrico', null, null, null)));
+		self::assertSame([$b], $this->answered($this->controller->index('crema', null, null, null)));
+		self::assertSame([$c], $this->answered($this->controller->index('bromhidrato', null, null, null)));
 	}
 
 	public function testCategoriaNarrowsBySlug(): void {

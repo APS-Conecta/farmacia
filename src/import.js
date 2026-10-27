@@ -56,6 +56,23 @@ export function counters(batch) {
 }
 
 /**
+ * What an undo did, as one line: the records it put back, always, and the
+ * records it left as they were, when there are any, with the reason in
+ * general terms. A revert counts in its own words: the review's «por
+ * actualizar» would misread it.
+ *
+ * @param {object} batch ImportBatch::toClient() of a revert batch
+ * @returns {string}
+ */
+export function revertCounters(batch) {
+	const undone = `${batch.updated} deshechos`
+
+	return batch.skipped > 0
+		? `${undone} · ${batch.skipped} sin deshacer: cambiaron después del lote o su categoría o canal ya no existe`
+		: undone
+}
+
+/**
  * The rows the review still owes a decision on, in planilla order. The
  * stage's own status decides — never a re-derivation of the payload here.
  *

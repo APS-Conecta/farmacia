@@ -222,6 +222,28 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame('unchanged', $doc['rows'][0]['disposition'], 'a column the file does not carry is a field the apply does not touch');
 	}
 
+	public function testALineShorterThanItsHeadingKeepsTheStoredClinicalSafetyFields(): void {
+		$this->wire();
+		$stored = self::medication('F-001');
+		$stored->setRiesgoColinergicoAm(true);
+		$stored->setFdaEmbarazo('D');
+		$stored->setAjusteRenal('Evitar si TFG < 30');
+		$this->wireStored($stored);
+		// The real reader: the case is the path from a short line to the judgement.
+		$service = new ImportService(
+			new CsvReader(), $this->categories, $this->channels, $this->medications,
+			$this->ges, $this->restrictions, $this->abastece, $this->batches, $this->rows,
+		);
+
+		$doc = $service->stage(
+			"Código;Producto;Riesgo colinérgico AM;FDA embarazo;Ajuste renal\nF-001;Producto de prueba",
+			'planilla.csv',
+			null,
+		);
+
+		self::assertSame('unchanged', $doc['rows'][0]['disposition'], 'a cell the line never reached is not a clear');
+	}
+
 	public function testARetiredRecordIsSkippedWhateverTheRowSays(): void {
 		$this->wire();
 		$this->wireStored(self::medication('F-001', retired: true));
@@ -270,6 +292,52 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame(1, $doc['batch']['unsupported']);
 	}
 
+	public function testAGesCellBeyondTheColumnStagesInvalidAndTheRestStillStage(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		$cells = self::fullCells('F-009');
+		$cells['ges'] = ['56912345678']; // a pasted phone number
+		$this->csv->method('read')->willReturn([
+			self::readRow(2, $cells),
+			self::readRow(3, self::fullCells('F-010')),
+		]);
+
+		$doc = $this->service->stage('csv', 'planilla.csv', null);
+
+		self::assertSame('invalid', $doc['rows'][0]['status']);
+		self::assertSame('unsupported', $doc['rows'][0]['disposition']);
+		self::assertStringContainsString('la celda GES trae «56912345678»: un número de problema GES', (string)$doc['rows'][0]['notes']);
+		self::assertSame('staged', $doc['rows'][1]['status']);
+		self::assertSame('create', $doc['rows'][1]['disposition']);
+		self::assertSame(1, $doc['batch']['unsupported']);
+		self::assertSame(1, $doc['batch']['created']);
+	}
+
+	public function testAnOverLongCodigoIsStoredCutToTheColumnWidthAndStagesInvalid(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		// Multibyte, so a byte-wise cut fails; the repeat takes the duplicate branch.
+		$this->csv->method('read')->willReturn([
+			self::readRow(2, self::fullCells(str_repeat('Á', 200))),
+			self::readRow(3, self::fullCells(str_repeat('B', 128))),
+			self::readRow(4, self::fullCells(str_repeat('Á', 200))),
+		]);
+
+		$doc = $this->service->stage('csv', 'planilla.csv', null);
+
+		self::assertSame(str_repeat('Á', 128), $this->inserted[0]->getCodigo());
+		self::assertSame(str_repeat('Á', 200), json_decode($this->inserted[0]->getPayload(), true)['codigo'], 'the full cell stays in the payload');
+		self::assertSame(['unsupported', 'invalid'], [$doc['rows'][0]['disposition'], $doc['rows'][0]['status']]);
+		self::assertStringContainsString('la celda Código pasa de 128 caracteres', (string)$doc['rows'][0]['notes']);
+		self::assertSame(str_repeat('B', 128), $this->inserted[1]->getCodigo(), 'a código at the column width is stored unchanged');
+		self::assertSame('create', $doc['rows'][1]['disposition']);
+		self::assertSame(str_repeat('Á', 128), $this->inserted[2]->getCodigo());
+		self::assertSame('duplicate', $doc['rows'][2]['disposition']);
+		self::assertSame([1, 1], [$doc['batch']['unsupported'], $doc['batch']['created']]);
+	}
+
 	public function testAnUnknownCategoryAndChannelSurfaceAsReviewDecisions(): void {
 		$this->wire();
 		$this->medications->method('findAll')->willReturn([]);
@@ -303,7 +371,26 @@ final class ImportServiceTest extends TestCase {
 		$row = $doc['rows'][0];
 		self::assertSame('unresolved-vocabulary', $row['status']);
 		self::assertNull($row['payload']['pending']['categoria']);
-		self::assertStringContainsString('el archivo no trae columna Categoría', (string)$row['notes']);
+		self::assertStringContainsString('la fila es nueva y no trae Categoría', (string)$row['notes']);
+	}
+
+	public function testANarrowPlanillaStagesANewCodigoInvalidAndStillUpdatesTheStoredOne(): void {
+		$this->wire();
+		$this->wireStored(self::medication('F-001'));
+		$this->csv->method('read')->willReturn([
+			self::readRow(2, ['codigo' => 'NEW-1', 'fdaEmbarazo' => 'C']),
+			self::readRow(3, ['codigo' => 'F-001', 'fdaEmbarazo' => 'C']),
+			self::readRow(4, ['fdaEmbarazo' => 'C']),
+		]);
+
+		$doc = $this->service->stage('csv', 'planilla.csv', null);
+
+		[$new, $stored, $blank] = $doc['rows'];
+		self::assertSame(['unsupported', 'invalid'], [$new['disposition'], $new['status']], 'no review decision can supply a producto');
+		self::assertStringContainsString('la fila no trae producto', (string)$new['notes']);
+		self::assertSame(['update', 'staged'], [$stored['disposition'], $stored['status']]);
+		self::assertSame('la fila no trae código', $blank['notes']);
+		self::assertSame([0, 1, 2], [$doc['batch']['created'], $doc['batch']['updated'], $doc['batch']['unsupported']]);
 	}
 
 	public function testAnUncleanRestrictionSplitIsFlaggedNotJudgedAnUpdate(): void {
@@ -341,6 +428,45 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame('create', $updated['disposition']);
 		self::assertSame(2, $updated['payload']['categoryId']);
 		self::assertSame([], $updated['payload']['pending']);
+	}
+
+	/** @return array<string, array{string}> the dispositions a row judged against a stored record carries */
+	public static function judgedAgainstAStoredRecord(): array {
+		return ['update' => ['update'], 'unchanged' => ['unchanged']];
+	}
+
+	/** @dataProvider judgedAgainstAStoredRecord */
+	public function testDecideKeepsARowJudgedAgainstAVanishedRecordAnUpdate(string $prior): void {
+		$this->wire();
+		// The stored código was edited after the upload: it no longer resolves.
+		$this->medications->method('findByCodigo')->willThrowException(new \OCP\AppFramework\Db\DoesNotExistException('no'));
+		$row = $this->undecidedRow(['categoria' => 'Cardiovasculres']);
+		$row->setDisposition($prior);
+		$this->rows->method('find')->willReturn($row);
+		$this->batches->method('find')->willReturn($this->stagedBatch());
+		$this->categories->method('find')->willReturn(self::category(2, 'salud_mental_incluye_tto_oh', 'Salud mental (incluye tto OH)'));
+
+		$updated = $this->service->decide((int)$row->getId(), ['categoryId' => 2]);
+
+		self::assertSame('update', $updated['disposition'], 'a create would land a second medication under the old código');
+	}
+
+	public function testDecideReDerivesACreateRowAgainstAHandMadeRecord(): void {
+		$this->wire();
+		// Someone created F-009 by hand after the upload: the row now meets it.
+		$stored = new Medication();
+		$stored->setCodigo('F-009');
+		$stored->setProducto('Otro nombre');
+		$stored->setRetired(false);
+		$this->medications->method('findByCodigo')->willReturn($stored);
+		$row = $this->undecidedRow(['categoria' => null]);
+		$this->rows->method('find')->willReturn($row);
+		$this->batches->method('find')->willReturn($this->stagedBatch());
+		$this->categories->method('find')->willReturn(self::category(2, 'salud_mental_incluye_tto_oh', 'Salud mental (incluye tto OH)'));
+
+		$updated = $this->service->decide((int)$row->getId(), ['categoryId' => 2]);
+
+		self::assertSame('update', $updated['disposition']);
 	}
 
 	public function testDecideCanLeaveAChannelUnassigned(): void {
@@ -427,6 +553,35 @@ final class ImportServiceTest extends TestCase {
 		} catch (InvalidImportException $e) {
 			self::assertSame('El archivo no tiene filas debajo del encabezado.', $e->getMessage());
 		}
+	}
+
+	public function testAnActorOverSixtyFourCharactersIsRefusedAndNoLoteIsInserted(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		$this->csv->method('read')->willReturn([self::readRow(2, self::fullCells('F-009'))]);
+		$this->batches->expects(self::never())->method('insert');
+
+		try {
+			$this->service->stage('csv', 'planilla.csv', str_repeat('a', 65));
+			self::fail('an actor wider than the lote column must be refused');
+		} catch (InvalidImportException $e) {
+			self::assertSame('El actor no puede pasar de 64 caracteres.', $e->getMessage());
+		}
+	}
+
+	public function testASixtyFourCharacterAccentedActorStagesAsGiven(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		$this->csv->method('read')->willReturn([self::readRow(2, self::fullCells('F-009'))]);
+		$actor = str_repeat('María ', 10) . 'José';
+		self::assertSame(64, mb_strlen($actor));
+		self::assertSame(75, strlen($actor), 'the accents make it wider in bytes than in characters');
+
+		$doc = $this->service->stage('csv', 'planilla.csv', $actor);
+
+		self::assertSame($actor, $doc['batch']['actor']);
 	}
 
 	/** A staged batch, as the review reopens it. */

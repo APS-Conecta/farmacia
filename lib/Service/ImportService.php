@@ -56,6 +56,9 @@ class ImportService {
 	/** The FDA pregnancy categories, as MedicationService states them. */
 	private const FDA_CATEGORIES = ['A', 'B', 'C', 'D', 'X'];
 
+	/** The width of farmacia_import.actor, as Version000100Date20260917000000 sets it. */
+	private const ACTOR_MAX = 64;
+
 	public function __construct(
 		private CsvReader $csv,
 		private CategoryMapper $categories,
@@ -77,9 +80,13 @@ class ImportService {
 	 * and a reopened batch through one document.
 	 *
 	 * @return array{batch: array<string, mixed>, rows: list<array<string, mixed>>}
-	 * @throws InvalidImportException when the file itself cannot be read
+	 * @throws InvalidImportException when the actor is longer than the lote records, or the file itself cannot be read
 	 */
 	public function stage(string $contents, string $filename, ?string $actor): array {
+		if ($actor !== null && mb_strlen($actor) > self::ACTOR_MAX) {
+			throw new InvalidImportException(sprintf('El actor no puede pasar de %d caracteres.', self::ACTOR_MAX));
+		}
+
 		$read = $this->csv->read($contents);
 		if ($read === []) {
 			throw new InvalidImportException('El archivo no tiene filas debajo del encabezado.');
@@ -125,7 +132,8 @@ class ImportService {
 
 			$entity = new ImportRow();
 			$entity->setLineNumber($line);
-			$entity->setCodigo($codigo);
+			// Column width: a longer código is never a create or an update.
+			$entity->setCodigo(mb_substr($codigo, 0, MedicationService::CELL_CAPS['codigo'][0]));
 			$entity->setPayload((string)json_encode($judged['payload'], JSON_UNESCAPED_UNICODE));
 			$entity->setDisposition($judged['disposition']);
 			$entity->setStatus($judged['status']);
@@ -198,8 +206,8 @@ class ImportService {
 	 * Record one review decision on a staged row.
 	 *
 	 * What a decision can settle is vocabulary and nothing else: the
-	 * category a row names (or lacks, on a new record from a planilla with
-	 * no Categoría column) and the channels its labels resolve to —
+	 * category a row names (or lacks, on a new record whose row carries no
+	 * Categoría) and the channels its labels resolve to —
 	 * including none of them, which is the «dejar sin canal» answer the
 	 * review offers. The cells themselves are the planilla's words and are
 	 * never rewritten here: a wrong cell is fixed in the spreadsheet and
@@ -289,15 +297,14 @@ class ImportService {
 					'abastece' => $this->abastece->findAllFor((int)$medication->getId()),
 				];
 			} catch (DoesNotExistException) {
-					// A código that stopped resolving between stage and decision reads
-					// as create here — the apply's own resolve() is the door that
-					// refuses a world that moved, and re-deriving a disposition is not
-					// that door.
-				}
+				// A código that stops resolving leaves $stored null: a row judged
+				// against a stored record stays an update below, so the apply's
+				// resolve() refuses it instead of creating a second medication.
+			}
 		}
 
 		if ($stored === null) {
-			$disposition = 'create';
+			$disposition = $row->getDisposition() === 'create' ? 'create' : 'update';
 		} elseif ($stored['retired']) {
 			$disposition = 'skipped';
 		} else {
@@ -338,12 +345,12 @@ class ImportService {
 			$problems[] = 'la fila no trae código';
 		}
 
-		// A producto cell that is empty in a column the file carries is a
-		// CLEAR, and a clear of the one name a medication cannot lose is
-		// refused downstream (MedicationService's own sentence) — better
-		// said here, where the person still has the planilla open.
-		if (array_key_exists('producto', $payload)) {
-			$producto = trim((string)$payload['producto']);
+		// A new record needs a producto whether its cell is empty, its column
+		// is missing or its line ends before it, and a stored one cannot clear
+		// it: both are refused downstream (MedicationService's own sentence) —
+		// better said here, where the person still has the planilla open.
+		if (array_key_exists('producto', $payload) || ($codigo !== '' && $stored === null)) {
+			$producto = trim((string)($payload['producto'] ?? ''));
 			if ($producto === '') {
 				$problems[] = 'la fila no trae producto';
 			}
@@ -370,7 +377,7 @@ class ImportService {
 
 		if (array_key_exists('ges', $payload)) {
 			foreach ($payload['ges'] as $number) {
-				if (!ctype_digit((string)$number) || (int)$number < 1) {
+				if (!ctype_digit((string)$number) || (int)$number < 1 || (int)$number > MedicationService::GES_NUMBER_MAX) {
 					$problems[] = sprintf('la celda GES trae «%s»: un número de problema GES', (string)$number);
 				}
 			}
@@ -393,9 +400,9 @@ class ImportService {
 				$pending['categoria'] = (string)$payload['categoria'];
 			}
 		} elseif ($stored === null) {
-			// A new record from a planilla with no Categoría column cannot be
-			// created without one: the review says which, and that is a
-			// decision this batch can carry.
+			// A new record whose row carries no Categoría cannot be created
+			// without one: the review says which, and that is a decision this
+			// batch can carry.
 			$pending['categoria'] = null;
 		}
 
@@ -482,7 +489,7 @@ class ImportService {
 		if (array_key_exists('categoria', $pending)) {
 			$notes[] = $pending['categoria'] !== null
 				? sprintf('la categoría «%s» no existe: declárela en la revisión', (string)$pending['categoria'])
-				: 'la fila es nueva y el archivo no trae columna Categoría: declárela en la revisión';
+				: 'la fila es nueva y no trae Categoría: declárela en la revisión';
 		}
 
 		if (array_key_exists('abastece', $pending)) {

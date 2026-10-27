@@ -13,17 +13,16 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
-
-use OCP\ILogger;
 use OCP\IUserSession;
+use Psr\Log\LoggerInterface;
 
 class MedicationController extends Controller {
 	use Refuses;
 	public function __construct(
 		IRequest $request,
 		private MedicationService $medications,
-		private ?IUserSession $userSession = null,
-		private ?ILogger $logger = null,
+		private IUserSession $userSession,
+		private LoggerInterface $logger,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -70,9 +69,9 @@ class MedicationController extends Controller {
 	}
 
 	private function logAuditEvent(string $action, ?int $entityId, ?string $codigo): void {
-		$actor = $this->userSession?->getUser()?->getUID() ?? 'system';
+		$actor = $this->userSession->getUser()?->getUID() ?? 'system';
 		$ip = $this->request->getRemoteAddress() ?? '127.0.0.1';
-		$this->logger?->info(sprintf(
+		$this->logger->warning(sprintf(
 			'HIPAA_AUDIT: %s by actor=%s on medication_id=%s codigo=%s from ip=%s at %s',
 			$action,
 			$actor,
