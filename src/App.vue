@@ -210,6 +210,8 @@ export default {
 			importBatches: [],
 			importBusy: false,
 			importError: '',
+			// An undo landed: the arsenal changed under the dialog, so closing it reloads.
+			importReverted: false,
 			// The export's said-before screen: one flag, nothing to hold.
 			exporting: false,
 			// The vocabulary editor: 'categories' | 'abastece' | null.
@@ -399,6 +401,9 @@ export default {
 			this.importing = false
 			this.importDocument = null
 			this.importError = ''
+			if (this.importReverted) {
+				window.location.reload()
+			}
 		},
 
 		/** The recent runs — a batch staged before the page closed reopens. */
@@ -558,7 +563,12 @@ export default {
 			}
 		},
 
-		/** The undo moved the arsenal like an apply, so it reloads like one. */
+		/**
+		 * The undo's answer is a report (what it put back, what it left as it
+		 * was), so the dialog stays open on the refreshed list, where the
+		 * revert's row says it. The arsenal changed, so closing the dialog
+		 * reloads; an answer that lands after Cerrar reloads at once.
+		 */
 		async revertBatch(id) {
 			this.importBusy = true
 			this.importError = ''
@@ -572,7 +582,12 @@ export default {
 				})
 
 				if (data !== null) {
-					window.location.reload()
+					this.importReverted = true
+					if (this.importing) {
+						await this.loadBatches()
+					} else {
+						window.location.reload()
+					}
 				}
 			} finally {
 				this.importBusy = false

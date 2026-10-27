@@ -319,3 +319,104 @@ describe('with no switching, the Medicamento writes behave as before (#40)', () 
 		await expectReleased()
 	})
 })
+
+/** A batch as ImportService::batches() serves it. */
+function batch(fields) {
+	return {
+		actor: 'admin',
+		startedAt: '2026-10-26 10:00:00',
+		appliedAt: '2026-10-26 10:01:00',
+		originalFilename: 'arsenal.csv',
+		fileHash: 'abc',
+		created: 0,
+		updated: 0,
+		skipped: 0,
+		duplicates: 0,
+		unsupported: 0,
+		unchanged: 0,
+		revertsId: null,
+		isRevert: false,
+		undone: false,
+		state: 'applied',
+		...fields,
+	}
+}
+
+const APPLIED = batch({ id: 12, updated: 40 })
+const REVERT = batch({ id: 13, isRevert: true, revertsId: 12, updated: 37, skipped: 3 })
+const ALREADY_UNDONE = 'Ese lote ya está deshecho.'
+
+/** NcDialog teleports out of the wrapper's tree, so its buttons are found in the document. */
+function dialogButton(text) {
+	return [...document.querySelectorAll('button')]
+		.find((candidate) => candidate.textContent.trim() === text)
+}
+
+async function clickInDialog(text) {
+	dialogButton(text).click()
+	await flushPromises()
+}
+
+/** Opens the import on a list holding lote 12. */
+async function openImport() {
+	axios.get.mockResolvedValueOnce({ data: [APPLIED] })
+	await click('Importar planilla')
+	await flushPromises()
+}
+
+describe('App lote undo (#43)', () => {
+	beforeEach(() => {
+		vi.stubGlobal('location', { reload: vi.fn() })
+	})
+
+	afterEach(() => {
+		vi.unstubAllGlobals()
+	})
+
+	it('keeps the dialog open on the refreshed list after an undo, and reloads on Cerrar', async () => {
+		await openImport()
+		axios.post.mockResolvedValueOnce({ data: REVERT })
+		axios.get.mockResolvedValueOnce({ data: [REVERT, { ...APPLIED, undone: true }] })
+
+		await clickInDialog('Deshacer')
+
+		expect(axios.post).toHaveBeenCalledWith('/apps/farmacia/import/12/revert')
+		expect(window.location.reload).not.toHaveBeenCalled()
+		expect(document.querySelector('.import-dialog')).not.toBeNull()
+		expect(document.body.textContent).toContain('37 deshechos')
+		expect(document.body.textContent).toContain('3 sin deshacer')
+		expect(dialogButton('Deshacer')).toBeUndefined()
+
+		await clickInDialog('Cerrar')
+
+		expect(window.location.reload).toHaveBeenCalledTimes(1)
+	})
+
+	it('shows a refused undo and never reloads', async () => {
+		await openImport()
+		axios.post.mockRejectedValueOnce({ response: { status: 422, data: { message: ALREADY_UNDONE } } })
+
+		await clickInDialog('Deshacer')
+
+		expect(document.body.textContent).toContain(ALREADY_UNDONE)
+		expect(window.location.reload).not.toHaveBeenCalled()
+
+		await clickInDialog('Cerrar')
+
+		expect(window.location.reload).not.toHaveBeenCalled()
+	})
+
+	it('reloads when the undo lands after Cerrar', async () => {
+		await openImport()
+		const request = hold('post')
+
+		await clickInDialog('Deshacer')
+		await clickInDialog('Cerrar')
+
+		expect(window.location.reload).not.toHaveBeenCalled()
+
+		await request.resolve(REVERT)
+
+		expect(window.location.reload).toHaveBeenCalledTimes(1)
+	})
+})

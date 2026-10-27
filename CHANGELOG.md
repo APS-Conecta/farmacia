@@ -62,6 +62,8 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Undoing a lote keeps the import dialog open, and its row says how many records it put back and
+  how many it left as they were.
 - Import decisions validate channel id types server-side.
 - Enter adds a GES number or a restriction from the adder field; vocabulary buttons carry
   aria-labels.
