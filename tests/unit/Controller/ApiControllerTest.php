@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace OCA\Farmacia\Tests\Unit\Controller;
 
+use APS\Common\Text;
 use OCA\Farmacia\Controller\ApiController;
 use OCA\Farmacia\Exception\InvalidMedicationException;
 use OCA\Farmacia\Service\MedicationService;
@@ -25,13 +26,14 @@ use Psr\Log\LoggerInterface;
  * restated for the surface whose refusals a consumer reads. The narrowing
  * fold itself is pinned here too: the private methods are exercised through
  * index(), with the service mocked to two rows and the vocabulary mocked to
- * the two categories they sit in (slugFor stays real — it is static, pure,
- * and the app's one fold).
+ * the two categories they sit in (Text::fold stays real — it is static and
+ * pure).
  */
 final class ApiControllerTest extends TestCase {
 	private MedicationService&MockObject $medications;
 	private LoggerInterface&MockObject $logger;
 	private ApiController $controller;
+	private array $rows = self::ROWS;
 
 	/** Two rows and their two categories: the minimum a narrowing can disagree about. */
 	private const ROWS = [
@@ -49,7 +51,7 @@ final class ApiControllerTest extends TestCase {
 		$request->method('getParams')->willReturn([]);
 
 		$this->medications = $this->createMock(MedicationService::class);
-		$this->medications->method('listAll')->willReturn(self::ROWS);
+		$this->medications->method('listAll')->willReturnCallback(fn (): array => $this->rows);
 
 		$vocabulary = $this->createMock(VocabularyService::class);
 		$vocabulary->method('categories')->willReturn(self::CATEGORIES);
@@ -102,7 +104,7 @@ final class ApiControllerTest extends TestCase {
 	}
 
 	public function testAPunctuationOnlySearchIsNotAQuestion(): void {
-		// slugFor('??') folds to '' — a needle that would match everything.
+		// '??' has no letter or digit, so it is not a question.
 		self::assertSame(self::ROWS, $this->answered($this->controller->index('??', null, null, null)));
 	}
 
@@ -130,6 +132,22 @@ final class ApiControllerTest extends TestCase {
 		// The category label is the third field the app's own search
 		// matches (filters.js's one definition, mirrored).
 		self::assertSame([self::ROWS[1]], $this->answered($this->controller->index('cardiovascular', null, null, null)));
+	}
+
+	public function testSearchFindsAWordPastTheSlugCut(): void {
+		$this->rows = [
+			['id' => 3, 'producto' => 'Clorfenamina maleato 2 mg/5 ml jarabe frasco 120 ml uso pediátrico', 'farmaco' => 'clorfenamina', 'categoryId' => 7],
+			['id' => 4, 'producto' => 'Betametasona dipropionato 0,05% + clotrimazol 1% + gentamicina 0,1% crema tubo 15 g', 'farmaco' => 'betametasona', 'categoryId' => 7],
+			['id' => 5, 'producto' => 'Antigripal jarabe 120 ml', 'farmaco' => 'clorfenamina maleato + paracetamol + fenilefrina clorhidrato + dextrometorfano bromhidrato', 'categoryId' => 7],
+		];
+		[$a, $b, $c] = $this->rows;
+		self::assertGreaterThan(Text::SLUG_LENGTH, mb_strlen($a['producto']));
+		self::assertGreaterThan(Text::SLUG_LENGTH, mb_strlen($b['producto']));
+		self::assertGreaterThan(Text::SLUG_LENGTH, mb_strlen($c['farmaco']));
+
+		self::assertSame([$a], $this->answered($this->controller->index('pediátrico', null, null, null)));
+		self::assertSame([$b], $this->answered($this->controller->index('crema', null, null, null)));
+		self::assertSame([$c], $this->answered($this->controller->index('bromhidrato', null, null, null)));
 	}
 
 	public function testCategoriaNarrowsBySlug(): void {
