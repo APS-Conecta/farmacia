@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { nextTick } from 'vue'
-import { mount } from '@vue/test-utils'
+import { nextTick, reactive } from 'vue'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
 import ImportDialog from './ImportDialog.vue'
+import { BATCH_STATE_LABELS, revertCounters } from '../import.js'
+
+enableAutoUnmount(afterEach)
 
 /** One staged row as the review serves it, owing what `pending` says. */
 function row(id, pending) {
@@ -26,7 +29,7 @@ function dialog(rows) {
 	return mount(ImportDialog, {
 		props: {
 			batches: [],
-			review: rows === null ? null : { batch: { id: 11, state: 'staged' }, rows },
+			review: rows === null ? null : reactive({ batch: { id: 11, state: 'staged' }, rows }),
 			categories: CATEGORIES,
 			abastece: [],
 		},
@@ -117,7 +120,6 @@ describe('ImportDialog picked file', () => {
 	beforeEach(() => {
 		wrapper = dialog(null)
 	})
-	afterEach(() => wrapper.unmount())
 
 	it('uploads the file a same-path re-pick reported as cancel', async () => {
 		const edited = planilla(3)
@@ -152,5 +154,89 @@ describe('ImportDialog picked file', () => {
 		expect(sentFirst).toBe(first)
 		expect(sentSecond).toBe(second)
 		expect(fileHint()).toBe('planilla.csv · 2 KB')
+	})
+})
+
+describe('ImportDialog recent batches', () => {
+	it('says what an undo did on its row, and leaves the other rows as they were', async () => {
+		const revert = {
+			id: 13,
+			originalFilename: 'arsenal.csv',
+			startedAt: '2026-10-26 10:05',
+			state: 'applied',
+			isRevert: true,
+			revertsId: 12,
+			undone: false,
+			updated: 37,
+			skipped: 3,
+		}
+		const applied = {
+			id: 12,
+			originalFilename: 'arsenal.csv',
+			startedAt: '2026-10-26 10:00',
+			state: 'applied',
+			isRevert: false,
+			undone: true,
+			updated: 40,
+			skipped: 0,
+		}
+		const wrapper = mount(ImportDialog, {
+			props: { batches: [revert, applied], review: null, categories: [], abastece: [] },
+			attachTo: document.body,
+		})
+		await nextTick()
+
+		const [revertRow, appliedRow] = document.querySelectorAll('.import-dialog__batch')
+		expect(appliedRow.querySelector('.import-dialog__hint').textContent.replace(/\s+/g, ' ').trim())
+			.toBe(`${applied.originalFilename} · ${applied.startedAt} · ${BATCH_STATE_LABELS.applied}`)
+		expect(revertRow.textContent).toContain(revertCounters(revert))
+		wrapper.unmount()
+	})
+})
+
+/** The row as decideRow patches it back: staged, owing nothing. */
+function decided(theRow) {
+	return { ...theRow, status: 'staged', payload: { ...theRow.payload, pending: {} } }
+}
+
+function listed(selector = '.import-dialog__row') {
+	return document.querySelectorAll(selector).length
+}
+
+function onlyPendingSwitch() {
+	return document.querySelector('.import-dialog input[type="checkbox"]')
+}
+
+async function filtering(rows) {
+	const wrapper = dialog(rows)
+	onlyPendingSwitch().click()
+	await nextTick()
+	return wrapper
+}
+
+describe('ImportDialog owed-rows switch', () => {
+	const owed = { categoria: 'Desconocida' }
+	it('lists every row once the last owed row is decided in place', async () => {
+		const wrapper = await filtering([row(1, owed), decided(row(2, {}))])
+		expect(listed()).toBe(1)
+		wrapper.props('review').rows.splice(0, 1, decided(row(1, owed)))
+		await nextTick()
+		expect(listed()).toBe(2)
+	})
+
+	it('starts a replacing review with the switch off', async () => {
+		const wrapper = await filtering([row(1, owed), decided(row(2, {}))])
+		await wrapper.setProps({ review: null })
+		await wrapper.setProps({ review: { batch: { id: 12, state: 'staged' }, rows: [row(3, owed), decided(row(4, {}))] } })
+		expect(onlyPendingSwitch().checked).toBe(false)
+		expect(listed()).toBe(2)
+	})
+
+	it('keeps listing exactly the rows still owed', async () => {
+		const wrapper = await filtering([row(1, owed), row(2, owed), decided(row(3, {}))])
+		wrapper.props('review').rows.splice(0, 1, decided(row(1, owed)))
+		await nextTick()
+		expect(listed()).toBe(1)
+		expect(listed('.import-dialog__row--owing')).toBe(1)
 	})
 })
