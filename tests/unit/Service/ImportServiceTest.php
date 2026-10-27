@@ -270,6 +270,28 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame(1, $doc['batch']['unsupported']);
 	}
 
+	public function testAGesCellBeyondTheColumnStagesInvalidAndTheRestStillStage(): void {
+		$this->wire();
+		$this->medications->method('findAll')->willReturn([]);
+		$this->medications->method('findRetired')->willReturn([]);
+		$cells = self::fullCells('F-009');
+		$cells['ges'] = ['56912345678']; // a pasted phone number
+		$this->csv->method('read')->willReturn([
+			self::readRow(2, $cells),
+			self::readRow(3, self::fullCells('F-010')),
+		]);
+
+		$doc = $this->service->stage('csv', 'planilla.csv', null);
+
+		self::assertSame('invalid', $doc['rows'][0]['status']);
+		self::assertSame('unsupported', $doc['rows'][0]['disposition']);
+		self::assertStringContainsString('la celda GES trae «56912345678»: un número de problema GES', (string)$doc['rows'][0]['notes']);
+		self::assertSame('staged', $doc['rows'][1]['status']);
+		self::assertSame('create', $doc['rows'][1]['disposition']);
+		self::assertSame(1, $doc['batch']['unsupported']);
+		self::assertSame(1, $doc['batch']['created']);
+	}
+
 	public function testAnUnknownCategoryAndChannelSurfaceAsReviewDecisions(): void {
 		$this->wire();
 		$this->medications->method('findAll')->willReturn([]);

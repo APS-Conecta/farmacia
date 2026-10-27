@@ -59,6 +59,12 @@ class MedicationService {
 		'programa' => [128, 'Programa'],
 	];
 
+	/**
+	 * The largest number the Types::INTEGER (signed 32-bit)
+	 * `farmacia_medication_ges.number` column holds; the staging judge reads it too.
+	 */
+	public const GES_NUMBER_MAX = 2147483647;
+
 	public function __construct(
 		private MedicationMapper $medications,
 		private MedicationGesMapper $ges,
@@ -254,7 +260,7 @@ class MedicationService {
 		$numbers = [];
 		foreach ($values as $value) {
 			$number = is_int($value) || (is_string($value) && ctype_digit($value)) ? (int)$value : null;
-			if ($number === null || $number < 1) {
+			if ($number === null || $number < 1 || $number > self::GES_NUMBER_MAX) {
 				throw new InvalidMedicationException(sprintf('El número GES «%s» no es un número de problema GES.', is_scalar($value) ? (string)$value : gettype($value)));
 			}
 			$numbers[] = $number;

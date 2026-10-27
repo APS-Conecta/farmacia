@@ -186,6 +186,49 @@ final class MedicationRoundTripTest extends IntegrationTestCase {
 		self::assertSame([1, 2], $payload['ges']);
 	}
 
+	/** @return array<string, array{int|string}> */
+	public static function gesBeyondTheColumnProvider(): array {
+		return [
+			'one past the column' => ['2147483648'],
+			'a typed string' => ['3000000000'],
+			'an int' => [3000000000],
+			'past PHP_INT_MAX' => ['9999999999999999999999999'],
+		];
+	}
+
+	/** @dataProvider gesBeyondTheColumnProvider */
+	public function testAGesNumberBeyondTheColumnIsRefused(int|string $number): void {
+		$this->expectException(InvalidMedicationException::class);
+		$this->expectExceptionMessage(sprintf('El número GES «%s» no es un número de problema GES.', $number));
+		try {
+			$this->service->create([
+				'codigo' => 'F-115',
+				'producto' => 'Producto',
+				'categoryId' => $this->categoryIdBySlug('otros'),
+				'ges' => [$number],
+			]);
+		} finally {
+			// Guard, not the red proof: create() already writes inside a
+			// transaction, so a refusal must leave no row behind.
+			$leaked = array_values(array_filter($this->service->listAll(), static fn ($r): bool => $r['codigo'] === 'F-115'));
+			$this->created = array_merge($this->created, array_column($leaked, 'id'));
+			self::assertSame([], $leaked, 'a refused create must write nothing');
+		}
+	}
+
+	public function testTheLargestGesNumberTheColumnHoldsRoundTrips(): void {
+		$payload = $this->service->create([
+			'codigo' => 'F-116',
+			'producto' => 'Producto',
+			'categoryId' => $this->categoryIdBySlug('otros'),
+			'ges' => ['2147483647'],
+		]);
+		$this->created[] = (int)$payload['id'];
+
+		self::assertSame([2147483647], $payload['ges']);
+		self::assertSame([2147483647], $this->service->read((int)$payload['id'])['ges']);
+	}
+
 	public function testARealChannelAssignmentRoundTrips(): void {
 		$channel = new Channel();
 		$channel->setSlug('urgencias-test');
