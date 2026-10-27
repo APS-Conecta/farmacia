@@ -97,9 +97,9 @@ class MedicationService {
 	/** @param array<string, mixed> $input */
 	public function create(array $input): array {
 		$medication = $this->apply(new Medication(), $input, whole: true);
-		$ges = $this->gesList($input['ges'] ?? []);
-		$restrictions = $this->restrictionList($input['restricciones'] ?? []);
-		$channels = $this->channelList($input['abastece'] ?? []);
+		$ges = $this->gesList(self::listIn($input, 'ges'));
+		$restrictions = $this->restrictionList(self::listIn($input, 'restricciones'));
+		$channels = $this->channelList(self::listIn($input, 'abastece'));
 
 		return $this->medications->transactionally(function () use ($medication, $ges, $restrictions, $channels): array {
 			$created = $this->insert($medication);
@@ -124,9 +124,9 @@ class MedicationService {
 
 		$this->apply($medication, $input, whole: false);
 
-		$ges = array_key_exists('ges', $input) ? $this->gesList($input['ges']) : null;
-		$restrictions = array_key_exists('restricciones', $input) ? $this->restrictionList($input['restricciones']) : null;
-		$channels = array_key_exists('abastece', $input) ? $this->channelList($input['abastece']) : null;
+		$ges = array_key_exists('ges', $input) ? $this->gesList(self::listIn($input, 'ges')) : null;
+		$restrictions = array_key_exists('restricciones', $input) ? $this->restrictionList(self::listIn($input, 'restricciones')) : null;
+		$channels = array_key_exists('abastece', $input) ? $this->channelList(self::listIn($input, 'abastece')) : null;
 
 		$childrenChanged = ($ges !== null && $ges !== $childrenBefore['ges'])
 			|| ($restrictions !== null && $restrictions !== $childrenBefore['restricciones'])
@@ -305,6 +305,14 @@ class MedicationService {
 		if (count($list) > self::LIST_CAP) {
 			throw new InvalidMedicationException(sprintf('Una lista no puede pasar de %d %s.', self::LIST_CAP, $what));
 		}
+	}
+
+	/** An array is the list as sent; an absent key, null or a blank string is the empty list; any other value is refused. */
+	private static function listIn(array $input, string $key): array {
+		$value = $input[$key] ?? null;
+		if (is_array($value)) { return $value; }
+		if ($value === null || (is_string($value) && trim($value) === '')) { return []; }
+		throw new InvalidMedicationException(sprintf('El campo «%1$s» es una lista: envíe cada valor en una clave «%1$s[]=» repetida.', $key));
 	}
 
 	private function childrenOf(Medication $medication): array {

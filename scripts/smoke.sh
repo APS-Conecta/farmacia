@@ -140,9 +140,10 @@ fi
 CODIGO="farmacia-smoke-$(date +%s)"
 code="$(web -H "$OCSH" -o /dev/null -w '%{http_code}' \
 	-d "codigo=$CODIGO" -d 'producto=Prueba de humo' -d "categoryId=$CATEGORY_ID" \
+	-d 'ges=' -d 'restricciones=' -d 'abastece=' \
 	"$OCS?format=json")"
 expect "$code" '201' \
-	"POST creates over OCS with no CSRF token — only the header" \
+	"POST creates over OCS with no CSRF token — only the header — with blank lists (payload.js's draft shape)" \
 	"POST answered $code — the header-as-CSRF verdict or the write path broke"
 
 expect "$(web -H "$OCSH" "$OCS?format=json&search=prueba+de+humo")" "$CODIGO" \

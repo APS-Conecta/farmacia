@@ -166,7 +166,9 @@ class ApiController extends OCSController {
 	 * categoryId, the optional texts, and the three child lists — ges,
 	 * restricciones, abastece (channel ids) — sent as request parameters
 	 * (form-encoded or query string, the OCS-classic encodings; repeated
-	 * `ges[]=…` keys carry the lists).
+	 * `ges[]=…` keys carry the lists; a bare `ges=` sends the empty list,
+	 * which on an update clears it, and any other single value is refused
+	 * with 422).
 	 *
 	 * @return DataResponse<Http::STATUS_CREATED|Http::STATUS_UNPROCESSABLE_ENTITY, array<string, mixed>, array{}>
 	 *
