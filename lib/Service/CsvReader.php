@@ -33,6 +33,12 @@ use OCA\Farmacia\Exception\InvalidImportException;
  * wipe the other fifteen. The export always carries every column, which is
  * what keeps the round-trip whole.
  *
+ * A cell a record ends before is the same absent key: only an empty cell
+ * the record carries («;;») clears a field, so a line cut short keeps the
+ * stored clinical-safety fields instead of erasing them. The cost: a
+ * spreadsheet that drops empty trailing delimiters loses those clears too —
+ * the app's export, which writes every column, or the sidebar makes them.
+ *
  * Depends on no OCP class, so it tests in bare PHP.
  */
 class CsvReader {
@@ -174,7 +180,7 @@ class CsvReader {
 	 * apostrophe taken back off (CsvGrammar::unquote), the multi-value cells
 	 * split — and nothing else. Sí/no stays «Sí», the FDA letter stays as
 	 * typed, and the vocabulary cells keep their labels, which is what the
-	 * review shows the person.
+	 * review shows the person. A column the record ends before is left out.
 	 *
 	 * @param array<int, string> $columns
 	 * @param list<?string> $cells
@@ -184,7 +190,10 @@ class CsvReader {
 		$values = [];
 		$empty = true;
 		foreach ($columns as $index => $key) {
-			$cell = CsvGrammar::unquote(trim((string)($cells[$index] ?? '')));
+			if (!array_key_exists($index, $cells)) {
+				continue;
+			}
+			$cell = CsvGrammar::unquote(trim((string)$cells[$index]));
 			if ($cell !== '') {
 				$empty = false;
 			}
