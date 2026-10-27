@@ -46,4 +46,5 @@ narrowed copy quietly stopped being the record of truth.
   carry one out.
 - Nothing here is an audit log: the batch record exists so a review can be reopened and undone,
   not to answer "who changed what when" — `updated_at` and the retired flag are the record's own
-  trace, no more.
+  trace; who made a change is the log line of
+  [ADR-0005](0005-an-audited-action-leaves-one-line-in-nextcloud-log.md).

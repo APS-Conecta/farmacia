@@ -145,6 +145,13 @@ expect "$code" '201' \
 	"POST creates over OCS with no CSRF token — only the header" \
 	"POST answered $code — the header-as-CSRF verdict or the write path broke"
 
+# The create's audit line, read back from the log file the instance writes (ADR-0005).
+LOGFILE="$(occ log:file | sed -n 's/^Log file: //p')"
+expect "$(docker exec "$CONTAINER" grep -F "codigo=$CODIGO " "$LOGFILE")" \
+	"HIPAA_AUDIT: API_CREATE_MEDICATION by actor=$USER_ID on medication_id=" \
+	"the OCS create left its HIPAA_AUDIT line in nextcloud.log" \
+	"the OCS create left no HIPAA_AUDIT line in nextcloud.log"
+
 expect "$(web -H "$OCSH" "$OCS?format=json&search=prueba+de+humo")" "$CODIGO" \
 	"the created medication answers to ?search= (accent-folded, like the app's own search)" \
 	"the created medication did not answer to ?search="

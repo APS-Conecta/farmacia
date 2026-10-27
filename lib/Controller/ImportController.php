@@ -14,9 +14,9 @@ use OCA\Farmacia\Service\ImportService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\JSONResponse;
-use OCP\ILogger;
 use OCP\IRequest;
 use OCP\IUserSession;
+use Psr\Log\LoggerInterface;
 
 /**
  * The browser's door to the staged import.
@@ -45,7 +45,7 @@ class ImportController extends Controller {
 		private ImportService $import,
 		private ApplyService $apply,
 		private IUserSession $userSession,
-		private ?ILogger $logger = null,
+		private LoggerInterface $logger,
 	) {
 		parent::__construct(Application::APP_ID, $request);
 	}
@@ -153,7 +153,7 @@ class ImportController extends Controller {
 	private function logAuditEvent(string $action, int $batchId): void {
 		$actor = $this->userSession->getUser()?->getUID() ?? 'system';
 		$ip = $this->request->getRemoteAddress() ?? '127.0.0.1';
-		$this->logger?->info(sprintf(
+		$this->logger->warning(sprintf(
 			'HIPAA_AUDIT: %s by actor=%s on batch_id=%d from ip=%s at %s',
 			$action,
 			$actor,
