@@ -253,6 +253,24 @@ final class ApplyRevertTest extends IntegrationTestCase {
 		self::assertSame($before, $after, 'a row judged unchanged must apply as a no-op: the stage\'s prediction IS the apply\'s write');
 	}
 
+	public function testANarrowPlanillaAppliesItsUpdatesAndNeverCreatesTheNewCodigo(): void {
+		$this->medication('AR-009');
+
+		$doc = $this->stage("Código;FDA embarazo\nAR-009;C\nAR-010;C\n", 'estrecha.csv');
+		$rows = array_column($doc['rows'], null, 'codigo');
+		self::assertSame(['unsupported', 'invalid'], [$rows['AR-010']['disposition'], $rows['AR-010']['status']], 'a new código the apply cannot create must stage invalid, or it refuses the whole lote');
+		self::assertStringContainsString('no trae columna Producto', (string)$rows['AR-010']['notes']);
+
+		$applied = $this->apply->apply((int)$doc['batch']['id']);
+
+		self::assertSame('applied', $applied['batch']['state']);
+		self::assertSame([1, 0, 1], [$applied['batch']['updated'], $applied['batch']['created'], $applied['batch']['unsupported']]);
+		$mapper = Server::get(MedicationMapper::class);
+		self::assertSame('C', $mapper->findByCodigo('AR-009')->getFdaEmbarazo());
+		$this->expectException(DoesNotExistException::class);
+		$mapper->findByCodigo('AR-010');
+	}
+
 	public function testTheRevertBatchIsListedAndMarksTheOriginalUndone(): void {
 		$doc = $this->stage("Código;Producto;Categoría\nAR-008;Producto nuevo;Otros\n", 'lista.csv');
 		$this->apply->apply((int)$doc['batch']['id']);
