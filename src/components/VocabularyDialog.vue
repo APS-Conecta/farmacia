@@ -143,6 +143,11 @@ export default {
 			 * null — the two-step shape Retirar already uses. Kept mutually
 			 * exclusive with `editing` by hand, in startRename/startRemove. */
 			confirming: null,
+			/** The last write this dialog emitted, as { kind: 'create', label }
+			 * or { kind: 'rename', slug }, or null. It exists because a fresh
+			 * `entries` list does not say which write it answers. Only the
+			 * last write is kept, never a queue: one key, as with `editing`. */
+			lastWrite: null,
 			draftLabel: '',
 			newLabel: '',
 		}
@@ -155,19 +160,25 @@ export default {
 	},
 
 	watch: {
-		// Success is observable: a rename that landed answers with the whole
-		// fresh list down the `entries` prop (VocabularyService's own shape),
-		// and THAT is the moment the field closes. A refusal changes nothing
-		// here — the error prop shows at the top of the dialog, and the field
-		// keeps what the person typed, exactly as commitAdd's own comment
-		// promises for the adder: "a refusal must not cost the person their
-		// text" (L2-20).
+		// Success is observable: a write that landed answers with the whole
+		// fresh list down the `entries` prop (VocabularyService's own shape).
+		// Each field is reconciled only against the write that came from it,
+		// so a landing never clears what the person is typing elsewhere, and
+		// a confirmation is dropped once its row is gone from the list. A
+		// refusal changes nothing here — the error prop shows at the top of
+		// the dialog, and each field keeps what the person typed: "a refusal
+		// must not cost the person their text" (L2-20).
 		entries() {
-			if (this.editing !== null) {
+			const write = this.lastWrite
+			this.lastWrite = null
+			if (write?.kind === 'rename' && this.editing === write.slug) {
 				this.editing = null
 			}
-			if (this.newLabel !== '') {
+			if (write?.kind === 'create' && this.newLabel.trim() === write.label) {
 				this.newLabel = ''
+			}
+			if (this.confirming !== null && !this.entries.some((entry) => entry.slug === this.confirming)) {
+				this.confirming = null
 			}
 		},
 	},
@@ -187,6 +198,7 @@ export default {
 				this.editing = null
 				return
 			}
+			this.lastWrite = { kind: 'rename', slug: entry.slug }
 			this.$emit('rename', { slug: entry.slug, label })
 			// NOT closed here: a refusal must not cost the person their text
 			// (L2-20) — the field closes when the write lands, watched below.
@@ -202,6 +214,7 @@ export default {
 			if (label === '') {
 				return
 			}
+			this.lastWrite = { kind: 'create', label }
 			this.$emit('create', label)
 			// The field keeps what was typed: a refusal must not cost the
 			// person their text, and the fresh list coming back down the
