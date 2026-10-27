@@ -71,4 +71,12 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - The lock file catches up with `package.json` (stale since the 0.11.1 release).
 - The vocabulary dialog clears its adder field once the new entry lands.
 - The export dialog's hint says «la planilla», not «el planilla».
+- A GES number above 2147483647 is refused with a sentence (Guardar, OCS, planilla staging)
+  instead of a 500.
+- A review decision on a row whose stored código changed no longer creates a duplicate medication;
+  the apply refuses the row.
+- `occ farmacia:import` refuses an `--actor` over 64 characters with a sentence instead of a database error.
+- The GES, restricción and canal de abastece reads send at most 1000 medication ids per query: an
+  arsenal past 1000 medications no longer logs a core error on every upload, page load and export,
+  and no longer fails on Oracle.
 - After Restaurar, a medicamento's actions bar starts again at «Retirar del arsenal», not at an armed confirmation.

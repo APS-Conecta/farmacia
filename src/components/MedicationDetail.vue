@@ -35,7 +35,7 @@
 						Se retira del arsenal y de la lista. No se borra: conserva sus
 						datos y se puede restaurar.
 					</p>
-					<NcButton variant="error" @click="$emit('retire')">
+					<NcButton variant="error" :disabled="saving" @click="$emit('retire')">
 						Retirar
 					</NcButton>
 					<NcButton variant="tertiary" @click="confirmingRetire = false">
