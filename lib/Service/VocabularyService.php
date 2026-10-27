@@ -30,13 +30,16 @@ use Throwable;
  *
  * The two vocabularies are one shape (id, slug, label) under one set of
  * rules, so each rule is stated once: `cleanLabel()` judges what a word may
- * contain, `slugFor()` derives the address, `refuseIfInUse()` guards
+ * contain, `slugFor()` derives the address, `refuseIfNameTaken()` keeps
+ * every label answering to its own word, `refuseIfInUse()` guards
  * removal. The two public method families differ only in which table a
  * rule runs over.
  */
 class VocabularyService {
 	/** farmacia_category.label and farmacia_abastece.label are VARCHAR(128). */
 	private const LABEL_LENGTH = 128;
+
+	private const NAME_TAKEN = 'Ya existe %s con ese nombre.';
 
 	public function __construct(
 		private CategoryMapper $categories,
@@ -81,25 +84,22 @@ class VocabularyService {
 	 * Renames. The slug is what survives — territorio's findBySlug
 	 * rationale, still true here: the label moves and the id differs per
 	 * install, so a client that wants to address one word has exactly one
-	 * stable name for it. Nothing here regenerates the slug, so a rename
-	 * can never collide: uniqueness is the insert-time rule below.
+	 * stable name for it. Nothing here regenerates the slug, and a new
+	 * label is refused when its fold answers to another word
+	 * (`refuseIfNameTaken()`).
 	 *
 	 * @throws \OCP\AppFramework\Db\DoesNotExistException when no category carries that slug
-	 * @throws InvalidVocabularyException when the label is not one this app stores
+	 * @throws InvalidVocabularyException when the label is not one this app stores, or is another word's name
 	 */
 	public function renameCategory(string $slug, string $label): array {
-		$word = $this->categories->findBySlug($slug);
-		$word->setLabel($this->cleanLabel($label));
-		$this->categories->update($word);
+		$this->renameWord($this->categories, $slug, $label, 'una categoría');
 
 		return $this->categories();
 	}
 
 	/** The channel mirror of `renameCategory()`, same shape and same rules. */
 	public function renameChannel(string $slug, string $label): array {
-		$word = $this->channels->findBySlug($slug);
-		$word->setLabel($this->cleanLabel($label));
-		$this->channels->update($word);
+		$this->renameWord($this->channels, $slug, $label, 'un canal');
 
 		return $this->abastece();
 	}
@@ -180,9 +180,9 @@ class VocabularyService {
 
 	/**
 	 * The one add, for either vocabulary: judge the label, derive the slug,
-	 * insert. Uniqueness is the index's, not a check-then-insert — a second
-	 * statement of the same rule that could disagree with the first — and
-	 * the index's complaint is turned into a sentence naming the LABEL,
+	 * insert. The unique index guards slugs, concurrent adds included, and
+	 * `refuseIfNameTaken()` refuses the label folds the index cannot see,
+	 * with the same sentence. It names the LABEL,
 	 * because the slug is derived and the person never typed it: «Comité de
 	 * Vivienda» colliding with «comité de vivienda» is two people typing
 	 * what should be one word, and the message has to say it that way.
@@ -202,12 +202,52 @@ class VocabularyService {
 		$word->setLabel($clean);
 
 		try {
-			$mapper->insert($word);
+			// The transaction takes no lock and closes no race: the slug index
+			// is the only guard against concurrent writes, here and in renameWord().
+			$this->transactionally(function () use ($mapper, $clean, $kind, $word): void {
+				$this->refuseIfNameTaken($mapper, $clean, null, $kind);
+				$mapper->insert($word);
+			});
 		} catch (DbException $e) {
 			if ($e->getReason() !== DbException::REASON_UNIQUE_CONSTRAINT_VIOLATION) {
 				throw $e;
 			}
-			throw new InvalidVocabularyException(sprintf('Ya existe %s con ese nombre.', $kind));
+			throw new InvalidVocabularyException(sprintf(self::NAME_TAKEN, $kind));
+		}
+	}
+
+	/** The one rename, for either vocabulary: `addWord()`'s mirror, the slug kept. */
+	private function renameWord(CategoryMapper|ChannelMapper $mapper, string $slug, string $label, string $kind): void {
+		$this->transactionally(function () use ($mapper, $slug, $label, $kind): void {
+			$word = $mapper->findBySlug($slug);
+			$clean = $this->cleanLabel($label);
+			$this->refuseIfNameTaken($mapper, $clean, $slug, $kind);
+			$word->setLabel($clean);
+			$mapper->update($word);
+		});
+	}
+
+	/**
+	 * The planilla finds a word again by the fold of its label, so a label
+	 * is refused when its fold answers to another word: that word's slug,
+	 * or the fold of its label, which the slug index cannot see. '' answers
+	 * to no word, and the word's own slug answers to itself, exactly as
+	 * ImportService resolves.
+	 *
+	 * @param ?string $own the slug of the word being renamed, null for an add
+	 */
+	private function refuseIfNameTaken(CategoryMapper|ChannelMapper $mapper, string $label, ?string $own, string $kind): void {
+		$fold = self::slugFor($label);
+		if ($fold === '' || $fold === $own) {
+			return;
+		}
+		foreach ($mapper->findAll() as $word) {
+			if ($word->getSlug() === $own) {
+				continue;
+			}
+			if ($fold === $word->getSlug() || $fold === self::slugFor($word->getLabel())) {
+				throw new InvalidVocabularyException(sprintf(self::NAME_TAKEN, $kind));
+			}
 		}
 	}
 

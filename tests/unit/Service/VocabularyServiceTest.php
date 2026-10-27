@@ -21,9 +21,10 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The vocabulary's three rules — what a label may contain, the address it
- * makes, and what removal has to refuse — plus the shape every write
- * answers with (the whole served list, never the single row).
+ * The vocabulary's four rules — what a label may contain, the address it
+ * makes, that a name answers to one word only, and what removal has to
+ * refuse — plus the shape every write answers with (the whole served list,
+ * never the single row).
  *
  * The mappers are mocked because they are what has to be OBSERVED here, not
  * exercised: the whole of the removal decision is that nothing is deleted
@@ -145,15 +146,22 @@ final class VocabularyServiceTest extends TestCase {
 	}
 
 	public function testAnAddedWordIsInsertedFoldedAndAnswersWithTheWholeList(): void {
+		// findAll follows the table: the word is there only once inserted.
+		$inserted = false;
 		$this->categories->expects(self::once())->method('insert')
 			->with(self::callback(static function (Category $word): bool {
 				return $word->getSlug() === 'salud_mental' && $word->getLabel() === 'Salud Mental';
 			}))
-			->willReturnArgument(0);
-		$this->categories->method('findAll')->willReturn([
-			self::category(1, 'dental', 'Dental'),
-			self::category(2, 'salud_mental', 'Salud Mental'),
-		]);
+			->willReturnCallback(static function (Category $word) use (&$inserted): Category {
+				$inserted = true;
+
+				return $word;
+			});
+		$this->categories->method('findAll')->willReturnCallback(static function () use (&$inserted): array {
+			return $inserted
+				? [self::category(1, 'dental', 'Dental'), self::category(2, 'salud_mental', 'Salud Mental')]
+				: [self::category(1, 'dental', 'Dental')];
+		});
 
 		$list = $this->service->addCategory('  Salud Mental  ');
 
@@ -161,6 +169,21 @@ final class VocabularyServiceTest extends TestCase {
 			['id' => 1, 'slug' => 'dental', 'label' => 'Dental'],
 			['id' => 2, 'slug' => 'salud_mental', 'label' => 'Salud Mental'],
 		], $list);
+	}
+
+	public function testAddingANameARenamedWordAlreadyShowsIsRefused(): void {
+		// The slug index sees `odontologia` free, but the renamed word already
+		// shows «Odontología»: once the new word owns that slug, the planilla
+		// would file the renamed word's medications under it.
+		$this->categories->method('findAll')->willReturn([self::category(1, 'dental', 'Odontología')]);
+		$this->categories->expects(self::never())->method('insert');
+
+		try {
+			$this->service->addCategory('Odontología');
+			self::fail('a name another word already shows must be refused');
+		} catch (InvalidVocabularyException $e) {
+			self::assertSame('Ya existe una categoría con ese nombre.', $e->getMessage());
+		}
 	}
 
 	public function testANameWhoseSlugAlreadyExistsIsRefusedNamingTheLabel(): void {
@@ -284,6 +307,92 @@ final class VocabularyServiceTest extends TestCase {
 		} catch (InvalidVocabularyException $e) {
 			self::assertSame('El nombre no puede contener «|»: es el separador con el que la planilla une varios valores en una celda.', $e->getMessage());
 		}
+	}
+
+	public function testARenameOntoAnotherCategorysNameIsRefusedAndNothingIsWritten(): void {
+		// The planilla finds a word by the fold of its label: this label
+		// would file every «Antibióticos orales» medication under
+		// «Antimicrobianos» on the next import, with nothing to review.
+		$oral = self::category(2, 'antibioticos_orales', 'Antibióticos orales');
+		$this->categories->method('findBySlug')->with('antibioticos_orales')->willReturn($oral);
+		$this->categories->method('findAll')->willReturn([self::category(1, 'antimicrobianos', 'Antimicrobianos'), $oral]);
+		$this->categories->expects(self::never())->method('update');
+
+		try {
+			$this->service->renameCategory('antibioticos_orales', 'Antimicrobianos');
+			self::fail('a rename onto another category\'s name must be refused');
+		} catch (InvalidVocabularyException $e) {
+			self::assertSame('Ya existe una categoría con ese nombre.', $e->getMessage());
+		}
+		self::assertSame('Antibióticos orales', $oral->getLabel());
+	}
+
+	public function testARenameOntoAnotherChannelsNameIsRefused(): void {
+		$cecosf = self::channel(5, 'cecosf', 'CECOSF');
+		$this->channels->method('findBySlug')->with('cecosf')->willReturn($cecosf);
+		$this->channels->method('findAll')->willReturn([self::channel(4, 'urgencias', 'URGENCIAS'), $cecosf]);
+		$this->channels->expects(self::never())->method('update');
+
+		try {
+			$this->service->renameChannel('cecosf', 'Urgencias');
+			self::fail('a rename onto another channel\'s name must be refused');
+		} catch (InvalidVocabularyException $e) {
+			self::assertSame('Ya existe un canal con ese nombre.', $e->getMessage());
+		}
+	}
+
+	public function testARenameOntoWhatAnotherWordsLabelFoldsToIsRefused(): void {
+		// «Dental» was renamed «Odontología» earlier: its slug stays `dental`,
+		// but the planilla now writes «Odontología», which folds to
+		// `odontologia` — the name this rename would also answer to.
+		$corticoides = self::category(9, 'corticoides', 'Corticoides');
+		$this->categories->method('findBySlug')->with('corticoides')->willReturn($corticoides);
+		$this->categories->method('findAll')->willReturn([self::category(1, 'dental', 'Odontología'), $corticoides]);
+		$this->categories->expects(self::never())->method('update');
+
+		try {
+			$this->service->renameCategory('corticoides', 'odontologia');
+			self::fail('a rename onto what another word\'s label folds to must be refused');
+		} catch (InvalidVocabularyException $e) {
+			self::assertSame('Ya existe una categoría con ese nombre.', $e->getMessage());
+		}
+	}
+
+	public function testARenameThatOnlyRecasesItsOwnLabelIsAllowed(): void {
+		$dental = self::category(7, 'dental', 'Odontología');
+		$this->categories->method('findBySlug')->willReturn($dental);
+		$this->categories->method('findAll')->willReturn([$dental, self::category(9, 'corticoides', 'Corticoides')]);
+		$this->categories->expects(self::once())->method('update')->with($dental);
+
+		$this->service->renameCategory('dental', 'ODONTOLOGÍA');
+
+		self::assertSame('ODONTOLOGÍA', $dental->getLabel());
+	}
+
+	public function testARenameToItsOwnSlugIsAllowedEvenWhenAnotherLabelAlreadyFoldsThere(): void {
+		// The planilla resolves `dental` to this word whatever else answers
+		// to it, so refusing the rightful owner would repair nothing.
+		$dental = self::category(7, 'dental', 'Dental');
+		$this->categories->method('findBySlug')->willReturn($dental);
+		$this->categories->method('findAll')->willReturn([$dental, self::category(8, 'odontologia', 'Dental')]);
+		$this->categories->expects(self::once())->method('update')->with($dental);
+
+		$this->service->renameCategory('dental', 'DÉNTAL');
+
+		self::assertSame('DÉNTAL', $dental->getLabel());
+	}
+
+	public function testARenameThatFoldsToNothingIsNotReportedAsTaken(): void {
+		// The planilla resolves an empty fold to no word at all, so nothing
+		// can be misrouted and «Ya existe…» would be false.
+		$dental = self::category(7, 'dental', 'Dental');
+		$this->categories->method('findBySlug')->willReturn($dental);
+		$this->categories->method('findAll')->willReturn([$dental, self::category(8, 'signos', '???')]);
+		$this->categories->expects(self::once())->method('update')->with($dental);
+
+		$this->service->renameCategory('dental', '!!!');
+
+		self::assertSame('!!!', $dental->getLabel());
 	}
 
 	public function testAnUnknownSlugEscapesForTheControllerToAnswer404(): void {
