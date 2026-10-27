@@ -298,4 +298,34 @@ final class MedicationRoundTripTest extends IntegrationTestCase {
 
 		self::assertSame([(int)$channel->getId()], $payload['abastece']);
 	}
+
+	public static function blankListProvider(): array {
+		return [['ges', ''], ['ges', null], ['ges', '  '], ['restricciones', ''], ['abastece', '']];
+	}
+	/** @dataProvider blankListProvider */
+	public function testABlankListValueClearsThatList(string $key, ?string $blank): void {
+		$id = $this->medication('F-115', ['ges' => [1, 17], 'restricciones' => ['Solo receta retenida']]);
+		self::assertSame([[], []], [$this->service->update($id, [$key => $blank])[$key], $this->service->read($id)[$key]]);
+	}
+
+	public static function singleValueListProvider(): array {
+		return [['ges', '5'], ['ges', 5], ['restricciones', 'Solo receta retenida'], ['abastece', '3']];
+	}
+	/** @dataProvider singleValueListProvider */
+	public function testASingleValueListIsRefusedAndNothingIsWritten(string $key, int|string $single): void {
+		$id = $this->medication('F-116', ['ges' => [1, 17]]);
+		try {
+			$this->service->update($id, ['producto' => 'Cambiado', $key => $single]);
+			self::fail("a single «{$key}» value must be refused");
+		} catch (InvalidMedicationException $e) {
+			self::assertStringContainsString("«{$key}[]=»", $e->getMessage());
+		}
+		$stored = $this->service->read($id);
+		self::assertSame(['Producto de prueba', [1, 17]], [$stored['producto'], $stored['ges']]);
+	}
+
+	public function testCreateReadsBlankListsAsEmpty(): void {
+		$stored = $this->service->read($this->medication('F-117', ['ges' => '', 'restricciones' => '', 'abastece' => '']));
+		self::assertSame([[], [], []], [$stored['ges'], $stored['restricciones'], $stored['abastece']]);
+	}
 }

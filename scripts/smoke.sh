@@ -141,10 +141,11 @@ CODIGO="farmacia-smoke-$(date +%s)"
 # The flags go form-encoded as the string 'false' (#29): a bare cast stores them as true.
 created="$(web -H "$OCSH" -w ' HTTP %{http_code}' \
 	-d "codigo=$CODIGO" -d 'producto=Prueba de humo' -d "categoryId=$CATEGORY_ID" \
+	-d 'ges=' -d 'restricciones=' -d 'abastece=' \
 	-d trazador=false -d riesgoColinergicoAm=false \
 	"$OCS?format=json")"
 expect "$created" ' HTTP 201' \
-	"POST creates over OCS with no CSRF token — only the header" \
+	"POST creates over OCS with no CSRF token — only the header — with blank lists (payload.js's draft shape)" \
 	"POST did not answer 201 — the header-as-CSRF verdict or the write path broke"
 expect "$created" '"trazador":false' \
 	"a form-encoded trazador=false is stored as false" \
