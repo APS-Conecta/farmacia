@@ -259,7 +259,7 @@ final class ApplyRevertTest extends IntegrationTestCase {
 		$doc = $this->stage("Código;FDA embarazo\nAR-009;C\nAR-010;C\n", 'estrecha.csv');
 		$rows = array_column($doc['rows'], null, 'codigo');
 		self::assertSame(['unsupported', 'invalid'], [$rows['AR-010']['disposition'], $rows['AR-010']['status']], 'a new código the apply cannot create must stage invalid, or it refuses the whole lote');
-		self::assertStringContainsString('no trae columna Producto', (string)$rows['AR-010']['notes']);
+		self::assertStringContainsString('la fila no trae producto', (string)$rows['AR-010']['notes']);
 
 		$applied = $this->apply->apply((int)$doc['batch']['id']);
 

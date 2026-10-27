@@ -222,6 +222,28 @@ final class ImportServiceTest extends TestCase {
 		self::assertSame('unchanged', $doc['rows'][0]['disposition'], 'a column the file does not carry is a field the apply does not touch');
 	}
 
+	public function testALineShorterThanItsHeadingKeepsTheStoredClinicalSafetyFields(): void {
+		$this->wire();
+		$stored = self::medication('F-001');
+		$stored->setRiesgoColinergicoAm(true);
+		$stored->setFdaEmbarazo('D');
+		$stored->setAjusteRenal('Evitar si TFG < 30');
+		$this->wireStored($stored);
+		// The real reader: the case is the path from a short line to the judgement.
+		$service = new ImportService(
+			new CsvReader(), $this->categories, $this->channels, $this->medications,
+			$this->ges, $this->restrictions, $this->abastece, $this->batches, $this->rows,
+		);
+
+		$doc = $service->stage(
+			"Código;Producto;Riesgo colinérgico AM;FDA embarazo;Ajuste renal\nF-001;Producto de prueba",
+			'planilla.csv',
+			null,
+		);
+
+		self::assertSame('unchanged', $doc['rows'][0]['disposition'], 'a cell the line never reached is not a clear');
+	}
+
 	public function testARetiredRecordIsSkippedWhateverTheRowSays(): void {
 		$this->wire();
 		$this->wireStored(self::medication('F-001', retired: true));
@@ -349,7 +371,7 @@ final class ImportServiceTest extends TestCase {
 		$row = $doc['rows'][0];
 		self::assertSame('unresolved-vocabulary', $row['status']);
 		self::assertNull($row['payload']['pending']['categoria']);
-		self::assertStringContainsString('el archivo no trae columna Categoría', (string)$row['notes']);
+		self::assertStringContainsString('la fila es nueva y no trae Categoría', (string)$row['notes']);
 	}
 
 	public function testANarrowPlanillaStagesANewCodigoInvalidAndStillUpdatesTheStoredOne(): void {
@@ -365,7 +387,7 @@ final class ImportServiceTest extends TestCase {
 
 		[$new, $stored, $blank] = $doc['rows'];
 		self::assertSame(['unsupported', 'invalid'], [$new['disposition'], $new['status']], 'no review decision can supply a producto');
-		self::assertStringContainsString('el archivo no trae columna Producto', (string)$new['notes']);
+		self::assertStringContainsString('la fila no trae producto', (string)$new['notes']);
 		self::assertSame(['update', 'staged'], [$stored['disposition'], $stored['status']]);
 		self::assertSame('la fila no trae código', $blank['notes']);
 		self::assertSame([0, 1, 2], [$doc['batch']['created'], $doc['batch']['updated'], $doc['batch']['unsupported']]);

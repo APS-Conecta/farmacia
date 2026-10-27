@@ -206,8 +206,8 @@ class ImportService {
 	 * Record one review decision on a staged row.
 	 *
 	 * What a decision can settle is vocabulary and nothing else: the
-	 * category a row names (or lacks, on a new record from a planilla with
-	 * no Categoría column) and the channels its labels resolve to —
+	 * category a row names (or lacks, on a new record whose row carries no
+	 * Categoría) and the channels its labels resolve to —
 	 * including none of them, which is the «dejar sin canal» answer the
 	 * review offers. The cells themselves are the planilla's words and are
 	 * never rewritten here: a wrong cell is fixed in the spreadsheet and
@@ -345,19 +345,15 @@ class ImportService {
 			$problems[] = 'la fila no trae código';
 		}
 
-		// A producto cell that is empty in a column the file carries is a
-		// CLEAR, and a clear of the one name a medication cannot lose is
-		// refused downstream (MedicationService's own sentence) — better
-		// said here, where the person still has the planilla open.
-		if (array_key_exists('producto', $payload)) {
-			$producto = trim((string)$payload['producto']);
+		// A new record needs a producto whether its cell is empty, its column
+		// is missing or its line ends before it, and a stored one cannot clear
+		// it: both are refused downstream (MedicationService's own sentence) —
+		// better said here, where the person still has the planilla open.
+		if (array_key_exists('producto', $payload) || ($codigo !== '' && $stored === null)) {
+			$producto = trim((string)($payload['producto'] ?? ''));
 			if ($producto === '') {
 				$problems[] = 'la fila no trae producto';
 			}
-		} elseif ($codigo !== '' && $stored === null) {
-			// A new record cannot be created without a producto, and no review
-			// decision supplies a cell: refused here, where the stage predicts the apply.
-			$problems[] = 'la fila es nueva y el archivo no trae columna Producto';
 		}
 
 		// The sí/no cells, folded with the repo's own rule so «Sí», «SI» and
@@ -404,9 +400,9 @@ class ImportService {
 				$pending['categoria'] = (string)$payload['categoria'];
 			}
 		} elseif ($stored === null) {
-			// A new record from a planilla with no Categoría column cannot be
-			// created without one: the review says which, and that is a
-			// decision this batch can carry.
+			// A new record whose row carries no Categoría cannot be created
+			// without one: the review says which, and that is a decision this
+			// batch can carry.
 			$pending['categoria'] = null;
 		}
 
@@ -493,7 +489,7 @@ class ImportService {
 		if (array_key_exists('categoria', $pending)) {
 			$notes[] = $pending['categoria'] !== null
 				? sprintf('la categoría «%s» no existe: declárela en la revisión', (string)$pending['categoria'])
-				: 'la fila es nueva y el archivo no trae columna Categoría: declárela en la revisión';
+				: 'la fila es nueva y no trae Categoría: declárela en la revisión';
 		}
 
 		if (array_key_exists('abastece', $pending)) {
