@@ -87,3 +87,5 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 - OCS `?search=` on `GET /api/v1/medicamentos` now matches words past character 64 of producto,
   fármaco and the category label. Punctuation now compares literally, so `?search=hta dm` no
   longer matches «Cardiovasculares (HTA · DM · DLP)».
+- A vocabulary write's answer now replaces the vocabulary it was sent for, and its refusal shows only
+  in that vocabulary's dialog (#41).

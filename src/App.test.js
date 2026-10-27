@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import axios from '@nextcloud/axios'
 import App from './App.vue'
 import MedicationList from './components/MedicationList.vue'
+import VocabularyDialog from './components/VocabularyDialog.vue'
 
 /**
  * The app-root harness (#40): the real App with its real list, form and
@@ -510,5 +512,89 @@ describe('the focus-reload keeps the view (#42)', () => {
 		returnToWindow()
 		expect(reload).not.toHaveBeenCalled()
 		expect(window.sessionStorage.getItem(KEPT)).toBeNull()
+	})
+})
+
+// Both vocabularies use id 1, as the real tables can: a list stored under the
+// wrong vocabulary would save the wrong ids silently.
+const CATEGORIES_BUTTON = 'Gestionar categorías terapéuticas'
+const ABASTECE_BUTTON = 'Gestionar canales de abastece'
+const ADDED = { id: 2, slug: 'antibioticos', label: 'Antibióticos' }
+const CATEGORIES_AFTER = [...STATE.categories, ADDED]
+const ABASTECE_AFTER = [...STATE.abastece, ADDED]
+const TAKEN = 'Ya existe una categoría con ese nombre.'
+const TAKEN_REFUSAL = { response: { status: 422, data: { message: TAKEN } } }
+
+/** The footer buttons are how a person opens either vocabulary. */
+async function openVocabulary(buttonLabel) {
+	await wrapper.get(`button[aria-label="${buttonLabel}"]`).trigger('click')
+}
+
+/** The dialog remounts on every open (v-if), so it is looked up fresh. */
+function vocabularyDialog() {
+	return wrapper.findComponent(VocabularyDialog)
+}
+
+async function closeVocabulary() {
+	vocabularyDialog().vm.$emit('close')
+	await nextTick()
+}
+
+/** Adds a word with the POST held open until the test answers it. */
+async function heldWrite(buttonLabel) {
+	await openVocabulary(buttonLabel)
+	const request = hold('post')
+	vocabularyDialog().vm.$emit('create', 'Antibióticos')
+	return request
+}
+
+describe('App vocabulary writes (#41)', () => {
+	it('a categories answer that lands after Cerrar replaces categories, not abastece', async () => {
+		const request = await heldWrite(CATEGORIES_BUTTON)
+		await closeVocabulary()
+
+		await request.resolve(CATEGORIES_AFTER)
+
+		expect(axios.post).toHaveBeenCalledWith('/apps/farmacia/categories', { label: 'Antibióticos' })
+		expect(wrapper.vm.categories).toEqual(CATEGORIES_AFTER)
+		expect(wrapper.vm.abastece).toEqual(STATE.abastece)
+	})
+
+	it('an abastece answer that lands in the Categorías dialog replaces abastece', async () => {
+		const request = await heldWrite(ABASTECE_BUTTON)
+		await closeVocabulary()
+		await openVocabulary(CATEGORIES_BUTTON)
+
+		await request.resolve(ABASTECE_AFTER)
+
+		expect(wrapper.vm.abastece).toEqual(ABASTECE_AFTER)
+		expect(wrapper.vm.categories).toEqual(STATE.categories)
+		expect(vocabularyDialog().props('entries')).toEqual(STATE.categories)
+	})
+
+	it('a categories refusal does not show in the Abastece dialog', async () => {
+		const request = await heldWrite(CATEGORIES_BUTTON)
+		await closeVocabulary()
+		await openVocabulary(ABASTECE_BUTTON)
+
+		await request.reject(TAKEN_REFUSAL)
+
+		expect(vocabularyDialog().props('error')).toBe('')
+		expect(document.body.textContent).not.toContain(TAKEN)
+		expect(console.error).toHaveBeenCalledWith('farmacia: could not write the vocabulary (422)', expect.anything())
+	})
+
+	it('with the dialog left open, a write replaces its own list and shows its own refusal', async () => {
+		const answered = await heldWrite(CATEGORIES_BUTTON)
+		await answered.resolve(CATEGORIES_AFTER)
+
+		expect(wrapper.vm.categories).toEqual(CATEGORIES_AFTER)
+		expect(vocabularyDialog().props('entries')).toEqual(CATEGORIES_AFTER)
+		expect(wrapper.vm.abastece).toEqual(STATE.abastece)
+
+		const refused = await heldWrite(CATEGORIES_BUTTON)
+		await refused.reject(TAKEN_REFUSAL)
+
+		expect(vocabularyDialog().props('error')).toBe(TAKEN)
 	})
 })
