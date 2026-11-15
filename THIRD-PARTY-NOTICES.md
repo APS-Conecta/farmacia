@@ -26,7 +26,7 @@ pulls in through them:
 | AGPL-3.0-or-later | `@nextcloud/vue` |
 | GPL-3.0-or-later | `@nextcloud/axios`, `@nextcloud/initial-state`, `@nextcloud/router` |
 | MIT | `vue` (the bundle carries its runtime packages, `@vue/runtime-dom` and `@vue/shared`), `vue-material-design-icons`, `escape-html`, `focus-trap`, `tabbable` |
-| Apache-2.0 OR MPL-2.0 | `dompurify` (DOMPurify 3.4.15) |
+| Apache-2.0 OR MPL-2.0 | `dompurify` (DOMPurify 3.4.18) |
 
 One reading of that table would be wrong: **`vue` is absent from the banner as a package**
 because the bundle imports its runtime packages, not the umbrella `package.json` names — the
